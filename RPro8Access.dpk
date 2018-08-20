@@ -1,0 +1,43 @@
+package RPro8Access;
+
+{$R *.res}
+{$IFDEF IMPLICITBUILDING This IFDEF should not be used by users}
+{$ALIGN 8}
+{$ASSERTIONS ON}
+{$BOOLEVAL OFF}
+{$DEBUGINFO OFF}
+{$EXTENDEDSYNTAX ON}
+{$IMPORTEDDATA ON}
+{$IOCHECKS ON}
+{$LOCALSYMBOLS OFF}
+{$LONGSTRINGS ON}
+{$OPENSTRINGS ON}
+{$OPTIMIZATION ON}
+{$OVERFLOWCHECKS OFF}
+{$RANGECHECKS OFF}
+{$REFERENCEINFO OFF}
+{$SAFEDIVIDE OFF}
+{$STACKFRAMES OFF}
+{$TYPEDADDRESS OFF}
+{$VARSTRINGCHECKS ON}
+{$WRITEABLECONST OFF}
+{$MINENUMSIZE 1}
+{$IMAGEBASE $400000}
+{$DEFINE RELEASE}
+{$ENDIF IMPLICITBUILDING}
+{$IMPLICITBUILD OFF}
+
+requires
+  rtl,
+  vcl;
+
+contains
+  uRProCommon in 'uRProCommon.pas',
+  uRPro8DB in 'Tables\uRPro8DB.pas',
+  uRPro8Table in 'Tables\uRPro8Table.pas',
+  uRPro8Receipt in 'Tables\uRPro8Receipt.pas',
+  uRProEnumLookup in 'uRProEnumLookup.pas',
+  uRPro8ReceiptModel in 'DataModels\uRPro8ReceiptModel.pas',
+  uRPro8OrderCustomerModel in 'DataModels\uRPro8OrderCustomerModel.pas';
+
+end.

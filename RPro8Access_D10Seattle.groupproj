@@ -1,0 +1,36 @@
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup>
+        <ProjectGuid>{18457170-1092-471F-AAB9-55501AE9FADD}</ProjectGuid>
+    </PropertyGroup>
+    <ItemGroup>
+        <Projects Include="RPro8Access.dproj">
+            <Dependencies/>
+        </Projects>
+    </ItemGroup>
+    <ProjectExtensions>
+        <Borland.Personality>Default.Personality.12</Borland.Personality>
+        <Borland.ProjectType/>
+        <BorlandProject>
+            <Default.Personality/>
+        </BorlandProject>
+    </ProjectExtensions>
+    <Target Name="RPro8Access">
+        <MSBuild Projects="RPro8Access.dproj"/>
+    </Target>
+    <Target Name="RPro8Access:Clean">
+        <MSBuild Projects="RPro8Access.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="RPro8Access:Make">
+        <MSBuild Projects="RPro8Access.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Build">
+        <CallTarget Targets="RPro8Access"/>
+    </Target>
+    <Target Name="Clean">
+        <CallTarget Targets="RPro8Access:Clean"/>
+    </Target>
+    <Target Name="Make">
+        <CallTarget Targets="RPro8Access:Make"/>
+    </Target>
+    <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
+</Project>
