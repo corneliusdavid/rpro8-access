@@ -39,6 +39,7 @@ contains
   uRProEnumLookup in 'uRProEnumLookup.pas',
   uRPro8ReceiptModel in 'DataModels\uRPro8ReceiptModel.pas',
   uRPro8OrderCustomerModel in 'DataModels\uRPro8OrderCustomerModel.pas',
-  uRPro8Customer in 'Tables\uRPro8Customer.pas';
+  uRPro8Customer in 'Tables\uRPro8Customer.pas',
+  uRPro8Inventory in 'Tables\uRPro8Inventory.pas';
 
 end.
