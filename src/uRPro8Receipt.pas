@@ -1,6 +1,5 @@
 unit uRPro8Receipt;
 
-
 interface
 
 uses
@@ -396,6 +395,7 @@ type
   protected
     function  GetTableID: Integer; override;
     function  GetTableName: string; override;
+    function  GetFileName: string; override;
     function  GetCustomInterface: IDispatch; override;
     function  GetIsRecordDeleted: Boolean; override;
     function  GetIsEmptyRecord: Boolean; override;
@@ -1290,6 +1290,11 @@ end;
 function TRPro8Receipt.GetFeeType: string;
 begin
   Result := FRProTable.Document.GetString(fidFeeType, FLastFieldNull);
+end;
+
+function TRPro8Receipt.GetFileName: string;
+begin
+  Result := FRProTable.FileName;
 end;
 
 function TRPro8Receipt.GetFlag1: string;

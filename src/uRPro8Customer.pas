@@ -11,7 +11,7 @@ type
   private
     {$REGION 'property getter and setters'}
     function GetAcceptChk: Boolean;
-    function GetAcctRec: Integer;
+    function GetAcctRec: string;
     function GetAddr1: string;
     function GetAddr2: string;
     function GetAddr3: string;
@@ -69,7 +69,7 @@ type
     function GetZip: string;
 
     procedure SetAcceptChk(const Value: Boolean);
-    procedure SetAcctRec(const Value: Integer);
+    procedure SetAcctRec(const Value: string);
     procedure SetAddr1(const Value: string);
     procedure SetAddr2(const Value: string);
     procedure SetAddr3(const Value: string);
@@ -130,6 +130,20 @@ type
     procedure SetAuxField(Index: Integer; const Value: string);
     function GetUDFField(Index: Integer): string;
     procedure SetUDFField(Index: Integer; const Value: string);
+    function GetDiscountPercentAllowed: Double;
+    procedure SetDiscountPercentAllowed(const Value: Double);
+    function GetCustSysDate: TDateTime;
+    procedure SetCustSysDate(const Value: TDateTime);
+    function GetCCNum: string;
+    procedure SetCCNum(const Value: string);
+    function GetCCExpMonth: Word;
+    procedure SetCCExpMonth(const Value: Word);
+    function GetCCExpYear: Word;
+    procedure SetCCExpYear(const Value: Word);
+    function GetPromo: string;
+    procedure SetPromo(const Value: string);
+    function GetCCExpDate: string;
+    procedure SetCCExpDate(const Value: string);
     {$ENDREGION}
   protected
     function  GetTableID: Integer; override;
@@ -166,7 +180,7 @@ type
 
     // customer record fields
     property AcceptChk: Boolean read GetAcceptChk write SetAcceptChk;
-    property AcctRec: Integer read GetAcctRec write SetAcctRec;        // enum
+    property AcctRec: string read GetAcctRec write SetAcctRec;        // enum
     property Addr1: string read GetAddr1 write SetAddr1;               // len=31
     property Addr2: string read GetAddr2 write SetAddr2;               // len=31
     property Addr3: string read GetAddr3 write SetAddr3;               // len=31
@@ -184,11 +198,17 @@ type
     property Aux12: string read GetAux12 write SetAux12;               // enum
     property Aux[Index: Integer]: string read GetAuxField write SetAuxField;
     property Balance: Double read GetBalance write SetBalance;
+    property CCNum: string read GetCCNum write SetCCNum;
+    property CCExpMonth: Word read GetCCExpMonth write SetCCExpMonth;
+    property CCExpYear: Word read GetCCExpYear write SetCCExpYear;
+    property CCExpDate: string read GetCCExpDate write SetCCExpDate;
     property ChargeLimit: Double read GetChargeLimit write SetChargeLimit;
     property City: string read GetCity;
     property Company: string read GetCompany write SetCompany;         // len=25
     property CreateDate: TDateTime read GetCreateDate;
+    property CustSysDate: TDateTime read GetCustSysDate write SetCustSysDate;
     property Detax: Boolean read GetDetax write SetDetax;
+    property DiscountPercentAllowed: Double read GetDiscountPercentAllowed write SetDiscountPercentAllowed;
     property Email: string read GetEmail write SetEmail;
     property FirstName: string read GetFirstName write SetFirstName;   // len=30
     property FullName: string read GetFullName;
@@ -206,6 +226,7 @@ type
     property Phone2: string read GetPhone2 write SetPhone2;            // len=15
     property Picture: string read GetPicture write SetPicture;         // len=20
     property PriceLevel: string read GetPriceLevel write SetPriceLevel;
+    property Promo: string read GetPromo write SetPromo;
     property SearchInfo: string read GetSearchInfo write SetSearchInfo;      // len=20
     property SearchMark: string read GetSearchMark write SetSearchMark;      // len=4
     property SearchPhone: string read GetSearchPhone write SetSearchPhone;   // len=15
@@ -266,9 +287,9 @@ begin
   Result := FRProTable.Document.GetBoolean(fidCustAcptChks, FLastFieldNull);
 end;
 
-function TRPro8Customer.GetAcctRec: Integer;
+function TRPro8Customer.GetAcctRec: String;
 begin
-  Result := FRProTable.Document.GetInteger(fidCustAR, FLastFieldNull);
+  Result := FRProTable.Document.GetString(fidCustAR, FLastFieldNull);
 end;
 
 function TRPro8Customer.GetAddr1: string;
@@ -356,6 +377,26 @@ begin
   Result := FRProTable.Document.GetDouble(fidCustCredUsed, FLastFieldNull);
 end;
 
+function TRPro8Customer.GetCCExpDate: string;
+begin
+  Result := FRProTable.Document.GetString(fidCustCCExpDate, FLastFieldNull);
+end;
+
+function TRPro8Customer.GetCCExpMonth: Word;
+begin
+  Result := FRProTable.Document.GetInteger(fidCustCCExpMonth, FLastFieldNull);
+end;
+
+function TRPro8Customer.GetCCExpYear: Word;
+begin
+  Result := FRProTable.Document.GetInteger(fidCustCCExpYear, FLastFieldNull);
+end;
+
+function TRPro8Customer.GetCCNum: string;
+begin
+  Result := FRProTable.Document.GetString(fidCustCCNum, FLastFieldNull);
+end;
+
 function TRPro8Customer.GetChargeLimit: Double;
 begin
   Result := FRProTable.Document.GetDouble(fidCustCredLim, FLastFieldNull);
@@ -384,6 +425,11 @@ end;
 function TRPro8Customer.GetDetax: Boolean;
 begin
   Result := FRProTable.Document.GetBoolean(fidCustDetax, FLastFieldNull);
+end;
+
+function TRPro8Customer.GetDiscountPercentAllowed: Double;
+begin
+  Result := FRProTable.Document.GetDouble(fidCustDiscPercentAlwd, FLastFieldNull);
 end;
 
 function TRPro8Customer.GetEmail: string;
@@ -474,6 +520,11 @@ end;
 function TRPro8Customer.GetPriceLevel: string;
 begin
   Result := GetRProLookupItem(FRProTable.Document, fidPrcLvl, FLastFieldNull);
+end;
+
+function TRPro8Customer.GetPromo: string;
+begin
+  Result := GetRProLookupItem(FRProTable.Document, fidCustPromoType, FLastFieldNull);
 end;
 
 function TRPro8Customer.GetSearchInfo: string;
@@ -579,9 +630,9 @@ begin
   FRProTable.Document.SetBoolean(Value, fidCustAcptChks);
 end;
 
-procedure TRPro8Customer.SetAcctRec(const Value: Integer);
+procedure TRPro8Customer.SetAcctRec(const Value: string);
 begin
-  FRProTable.Document.SetInteger(Value, fidCustAR);
+  FRProTable.Document.SetString(Value, fidCustAR);
 end;
 
 procedure TRPro8Customer.SetAddr1(const Value: string);
@@ -669,6 +720,26 @@ begin
   FRProTable.Document.SetDouble(Value, fidCustCredUsed);
 end;
 
+procedure TRPro8Customer.SetCCExpDate(const Value: string);
+begin
+  FRProTable.Document.SetString(Value, fidCustCCExpDate);
+end;
+
+procedure TRPro8Customer.SetCCExpMonth(const Value: Word);
+begin
+  FRProTable.Document.SetInteger(Value, fidCustCCExpMonth);
+end;
+
+procedure TRPro8Customer.SetCCExpYear(const Value: Word);
+begin
+  FRProTable.Document.SetInteger(Value, fidCustCCExpYear);
+end;
+
+procedure TRPro8Customer.SetCCNum(const Value: string);
+begin
+  FRProTable.Document.SetString(Value, fidCustCCNum);
+end;
+
 procedure TRPro8Customer.SetChargeLimit(const Value: Double);
 begin
   FRProTable.Document.SetDouble(Value, fidCustCredLim);
@@ -679,6 +750,11 @@ begin
   FRProTable.Document.SetString(Value, fidCustCompany);
 end;
 
+procedure TRPro8Customer.SetCustSysDate(const Value: TDateTime);
+begin
+  FRProTable.Document.SetDateTime(Value, fidCustSysDate);
+end;
+
 procedure TRPro8Customer.SetSID(const Value: Int64);
 begin
   FRProTable.Document.SetInt64(Value, fidCustSID);
@@ -687,6 +763,11 @@ end;
 procedure TRPro8Customer.SetDetax(const Value: Boolean);
 begin
   FRProTable.Document.SetBoolean(Value, fidCustDetax);
+end;
+
+procedure TRPro8Customer.SetDiscountPercentAllowed(const Value: Double);
+begin
+  FRProTable.Document.SetDouble(Value, fidCustDiscPercentAlwd);
 end;
 
 procedure TRPro8Customer.SetEmail(const Value: string);
@@ -772,6 +853,11 @@ end;
 procedure TRPro8Customer.SetPriceLevel(const Value: string);
 begin
   SetRProLookupItem(FRProTable.Document, fidPrcLvl, Value, LookupLengthMatch);
+end;
+
+procedure TRPro8Customer.SetPromo(const Value: string);
+begin
+  SetRProLookupItem(FRProTable.Document, fidCustPromoType, Value, LookupLengthMatch);
 end;
 
 procedure TRPro8Customer.SetSearchMark(const Value: string);
@@ -870,6 +956,11 @@ end;
 function TRPro8Customer.GetCustomInterface: IDispatch;
 begin
   raise EPro8Exception.Create('CustomInterface is not available for this table (' + TableName + ').');
+end;
+
+function TRPro8Customer.GetCustSysDate: TDateTime;
+begin
+  Result := FRProTable.Document.GetDateTime(fidCustSysDate, FLastFieldNull);
 end;
 
 function TRPro8Customer.GetIsRecordDeleted: Boolean;

@@ -58,4 +58,16 @@
   {$DEFINE DelphiXE2orHigher}
   {$DEFINE Delphi102Tokyo}
 {$ENDIF}
+{$IFDEF VER330}
+  {$DEFINE Delphi2010orHigher}
+  {$DEFINE DelphiXEorHigher}
+  {$DEFINE DelphiXE2orHigher}
+  {$DEFINE Delphi103Rio}
+{$ENDIF}
+{$IFDEF VER340}
+  {$DEFINE Delphi2010orHigher}
+  {$DEFINE DelphiXEorHigher}
+  {$DEFINE DelphiXE2orHigher}
+  {$DEFINE Delphi104Denali}
+{$ENDIF}
 

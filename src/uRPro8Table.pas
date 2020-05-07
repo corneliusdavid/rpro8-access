@@ -63,6 +63,7 @@ type
     function  GetRecordCount: Integer; virtual;
     function  GetTableID: Integer; virtual; abstract;
     function  GetTableName: string; virtual; abstract;
+    function  GetFileName: string; virtual;
     function  GetDefaultIndexID: Integer; virtual;
     function  GetCustomInterface: IDispatch; virtual; abstract;
     function  GetIsRecordDeleted: Boolean; virtual; abstract;
@@ -108,6 +109,7 @@ type
     // surfaced properties that are not published
     property TableID: Integer read GetTableID;
     property TableName: string read GetTableName;
+    property FileName: string read GetFileName;
     property RdaName: string read GetRdaName;
     property RProTable: IRdaTable read FRProTable;
     property AllIndexNames: TStringList read GetIndexNames;
@@ -369,6 +371,11 @@ begin
     Result := FRProTable.Eof
   else
     Result := False;
+end;
+
+function TRPro8Table.GetFileName: string;
+begin
+  Result := '<not supported>';
 end;
 
 procedure TRPro8Table.FillIndexNames;
