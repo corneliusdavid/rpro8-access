@@ -25,6 +25,9 @@ package RPro8Access;
 {$IMAGEBASE $400000}
 {$DEFINE RELEASE}
 {$ENDIF IMPLICITBUILDING}
+{$DESCRIPTION 'RPro8 data access units'}
+{$LIBSUFFIX '_103Rio'}
+{$RUNONLY}
 {$IMPLICITBUILD OFF}
 
 requires
@@ -32,14 +35,13 @@ requires
   vcl;
 
 contains
-  uRProCommon in 'uRProCommon.pas',
-  uRPro8DB in 'Tables\uRPro8DB.pas',
-  uRPro8Table in 'Tables\uRPro8Table.pas',
-  uRPro8Receipt in 'Tables\uRPro8Receipt.pas',
-  uRProEnumLookup in 'uRProEnumLookup.pas',
-  uRPro8ReceiptModel in 'DataModels\uRPro8ReceiptModel.pas',
-  uRPro8OrderCustomerModel in 'DataModels\uRPro8OrderCustomerModel.pas',
-  uRPro8Customer in 'Tables\uRPro8Customer.pas',
-  uRPro8Inventory in 'Tables\uRPro8Inventory.pas';
+  uRPro8Customer in '..\..\src\uRPro8Customer.pas',
+  uRPro8DB in '..\..\src\uRPro8DB.pas',
+  uRPro8Inventory in '..\..\src\uRPro8Inventory.pas',
+  uRPro8Receipt in '..\..\src\uRPro8Receipt.pas',
+  uRPro8Table in '..\..\src\uRPro8Table.pas',
+  uRProCommon in '..\..\src\uRProCommon.pas',
+  uRProEnumLookup in '..\..\src\uRProEnumLookup.pas',
+  uXmlDates in '..\..\src\uXmlDates.pas';
 
 end.
