@@ -26,7 +26,7 @@ package RPro8Access;
 {$DEFINE RELEASE}
 {$ENDIF IMPLICITBUILDING}
 {$DESCRIPTION 'RPro8 data access units'}
-{$LIBSUFFIX '_103Rio'}
+{$LIBSUFFIX '_D103Rio'}
 {$RUNONLY}
 {$IMPLICITBUILD OFF}
 
@@ -42,6 +42,7 @@ contains
   uRPro8Table in '..\..\src\uRPro8Table.pas',
   uRProCommon in '..\..\src\uRProCommon.pas',
   uRProEnumLookup in '..\..\src\uRProEnumLookup.pas',
-  uXmlDates in '..\..\src\uXmlDates.pas';
+  uXmlDates in '..\..\src\uXmlDates.pas',
+  uRProSalesorder in '..\..\src\uRProSalesorder.pas';
 
 end.
