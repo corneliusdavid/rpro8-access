@@ -1,10 +1,10 @@
-unit uRProSalesorder;
+unit uRPro8Salesorder;
 
 interface
 
 uses
-  SysUtils, Classes, Controls,
-  RDA2_TLB, uRPro8Table, uRPro8Receipt;
+  SysUtils, Classes, RDA2_TLB,
+  uRPro8Table;
 
 const
   idxSOCustPO = 3;
@@ -19,12 +19,10 @@ const
   idxSOShipDate = 15;
 
 type
-  TrdiRProSalesOrder = class(TRPro8Table)
+  TRProSalesOrder = class(TRPro8Table)
   private
     FLastModified: TDateTime;
     FNestedDoc: IRdaDocument;
-    FDepositsDoc: IRdaDocument;
-    FHistoryDoc: IRdaDocument;
 
     procedure CheckReadItemPosition(Index: Integer);
     procedure CheckWriteItemPosition(Index: Integer);
@@ -328,12 +326,6 @@ type
     procedure SetSOStNum(const Value: string);
     function GetPriority: string;
     procedure SetPriority(const Value: string);
-    procedure RecordSale_BillToFields(RecTable: TRPro8Receipt);
-    procedure RecordSale_ShipToFields(RecTable: TRPro8Receipt);
-    procedure RecordSale_Items(RecTable: TRPro8Receipt);
-    procedure RecordSale_HeaderFields(var RecTable: TRPro8Receipt; const Cashier: string);
-    procedure RecordSale_FeesTaxes(var RecTable: TRPro8Receipt);
-    procedure RecordSale_ShippingDiscounts(var RecTable: TRPro8Receipt);
     procedure SetShipToPhone1(const Value: string);
     procedure SetBillToPhone1(const Value: string);
     {$ENDREGION}
@@ -365,48 +357,11 @@ type
     procedure Open; override;
 
     function AddItem(const ItemNum: Integer): Boolean;
-    function AddHistory(const StoreSta: string; const RecNum: Integer; DocDate: TDateTime): Boolean;
+    procedure SetHistoryMonthYear(Month, Year: Integer); override;
 
     function SearchFieldFromIndex: Integer;
     function SearchFieldFromIndexLength: Integer;
     function Search(SearchValue: string; ExactMatch: Boolean): Boolean;
-
-    procedure ClearDepositTenders;
-    function  CreateNewDeposit(const Cashier: string; const Amount: Double): IRdaDocument;
-    procedure AddCashTenderToDeposit(ADeposit: IRdaDocument; const Amount: Double);
-    procedure AddDepositTenderToDeposit(ADeposit: IRdaDocument);
-    procedure AddCreditCardTenderToDeposit(ADeposit: IRdaDocument;
-                    const Amount: Double;
-                    const CCNum: string = ''; const CCType: string = ''; const AuthID: string = '';
-                    const ExpMonth: Integer = 0; const ExpYear: Integer = 0);
-    procedure AddCheckTenderToDeposit(ADeposit: IRdaDocument; const Amount: Double; const ChkNum: string = '';
-                                  const CustName: string = ''; const BankNum: string = '';
-                                  const StateCode: string = ''; const DLNum: string = '';
-                                  const DOB: TDateTime = 0);
-    procedure AddGiftCardTenderToDeposit(ADeposit: IRdaDocument; const Amount: Double; const GiftNum: string = '');
-    procedure AddStoreCreditTenderToDeposit(ADeposit: IRdaDocument; const Amount: Double);
-    procedure AddCODTenderToDeposit(ADeposit: IRdaDocument; const Amount: Double);
-    procedure AddDepositWithCash(const Cashier: string; const Amount: Double);
-    procedure AddDepositWithDeposit(const Cashier: string; var NewRecNum: Integer);
-    procedure AddDepositWithCreditCard(const Cashier: string; const Amount: Double;
-                    const CCNum: string = ''; const CCType: string = ''; const AuthID: string = '';
-                    const ExpMonth: Integer = 0; const ExpYear: Integer = 0);
-    procedure AddDepositWithGiftCard(const Cashier: string; const Amount: Double;
-                    const GiftNum: string = '');
-    procedure AddDepositWithStoreCredit(const Cashier: string; const Amount: Double);
-    procedure AddDepositWithCOD(const Cashier: string; const Amount: Double);
-    procedure AddDepositWithCheck(const Cashier: string; const Amount: Double; const ChkNum: string = '';
-                                  const CustName: string = ''; const BankNum: string = '';
-                                  const StateCode: string = ''; const DLNum: string = '';
-                                  const DOB: TDateTime = 0);
-    procedure AddDepositToSalesOrder;
-
-    { TODO : need to support other TenderType deposits.  See the Receipts module for examples }
-
-    procedure RecordSale(const Cashier: string; var NewRecNum: Integer; ATenderType: TenderType = ttDeposit; CCType: string = '');
-    procedure RecordSaleMultiTender(const Cashier: string; var NewRecNum: Integer;
-                                TendAmount1: Currency; TendType1: TenderType; CCType: string = '';
-                                TendAmount2: Currency = 0.0; TendType2: TenderType = ttCash);
 
     {$REGION 'sales order fields'}
     property BillToCustID: Integer read GetBillToCustID write SetBillToCustID;
@@ -512,9 +467,7 @@ type
     property UnfilledPercent: double read GetUnfilledPercent;
     {$ENDREGION}
 
-    property HistoryDoc: IRdaDocument read FHistoryDoc write FHistoryDoc;
     property NestedDoc: IRdaDocument read FNestedDoc write FNestedDoc;
-    property DepositsDoc: IRdaDocument read FDepositsDoc write FDepositsDoc;
 
     {$REGION 'nested item fields'}
     property ItemSID[Index: Integer]: Int64 read GetItemSID write SetItemSID;
@@ -632,44 +585,42 @@ uses
   {$IFDEF UseCodeSite} CodeSiteLogging, {$ENDIF}
   uRProEnumLookup, uRProCommon, uRPro8DB;
 
-{ TrdiRProSalesOrder }
+{ TRProSalesOrder }
 
-procedure TrdiRProSalesOrder.Open;
+procedure TRProSalesOrder.Open;
 begin
   inherited;
 
   FNestedDoc := FRProTable.Document.NestedDocByID[ntblSOItems];
-  FDepositsDoc := FRProTable.Document.NestedDocByID[ntblSODeposits];
-  FHistoryDoc := FRProTable.Document.NestedDocByID[ntblSOHistory];
 end;
 
-function TrdiRProSalesOrder.GetCustomInterface: IDispatch;
+function TRProSalesOrder.GetCustomInterface: IDispatch;
 begin
   raise EPro8Exception.Create('CustomInterface is not available for this table: ' + self.TableName);
 end;
 
-function TrdiRProSalesOrder.GetIsRecordDeleted: Boolean;
+function TRProSalesOrder.GetIsRecordDeleted: Boolean;
 begin
   Result := FRProTable.IsRecordDeleted;
 end;
 
-function TrdiRProSalesOrder.GetTableID: Integer;
+function TRProSalesOrder.GetTableID: Integer;
 begin
   // returns a constant from RDA2_TLB
   Result := tblSOs;
 end;
 
-function TrdiRProSalesOrder.GetTableName: string;
+function TRProSalesOrder.GetTableName: string;
 begin
   Result := 'Sales Orders';
 end;
 
-function TrdiRProSalesOrder.GetIsEmptyRecord: Boolean;
+function TRProSalesOrder.GetIsEmptyRecord: Boolean;
 begin
   Result := False;
 end;
 
-procedure TrdiRProSalesOrder.SetIndexID(const Value: Integer);
+procedure TRProSalesOrder.SetIndexID(const Value: Integer);
 // validates and sets the index iD and name
 var
   i: Integer;
@@ -695,7 +646,7 @@ begin
   {$IFDEF UseCodeSite}CodeSite.ExitMethod( Self, 'SetIndexID' );{$ENDIF}
 end;
 
-procedure TrdiRProSalesOrder.SetIndexName(const Value: WideString);
+procedure TRProSalesOrder.SetIndexName(const Value: WideString);
 // validates and sets the index name and associated index ID
 var
   i: Integer;
@@ -719,7 +670,7 @@ begin
   {$IFDEF UseCodeSite}CodeSite.ExitMethod( Self, 'SetIndexName' );{$ENDIF}
 end;
 
-function TrdiRProSalesOrder.SearchFieldFromIndex: Integer;
+function TRProSalesOrder.SearchFieldFromIndex: Integer;
 // returns the field ID associated with the current index
 begin
   {$IFDEF UseCodeSite}CodeSite.EnterMethod( Self, 'SearchFieldFromIndex' );{$ENDIF}
@@ -755,7 +706,7 @@ begin
   {$IFDEF UseCodeSite}CodeSite.ExitMethod( Self, 'SearchFieldFromIndex' );{$ENDIF}
 end;
 
-function TrdiRProSalesOrder.SearchFieldFromIndexLength: Integer;
+function TRProSalesOrder.SearchFieldFromIndexLength: Integer;
 // returns the length of the field used for the current index
 var
   sffi: Integer;
@@ -786,7 +737,7 @@ begin
   {$IFDEF UseCodeSite}CodeSite.ExitMethod( Self, 'SearchFieldFromIndexLength' );{$ENDIF}
 end;
 
-function TrdiRProSalesOrder.Search(SearchValue: string; ExactMatch: Boolean): Boolean;
+function TRProSalesOrder.Search(SearchValue: string; ExactMatch: Boolean): Boolean;
 // using the current index, calls the Find function of the RDA2 Table
 // if ExactMatch, length and case must be the same
 var
@@ -824,7 +775,7 @@ begin
   {$IFDEF UseCodeSite}CodeSite.ExitMethod( Self, 'Search' );{$ENDIF}
 end;
 
-function TrdiRProSalesOrder.AddItem(const ItemNum: Integer): Boolean;
+function TRProSalesOrder.AddItem(const ItemNum: Integer): Boolean;
 var
   SaveNestedDocCount: Integer;
 begin
@@ -838,26 +789,7 @@ begin
     Result := True;
 end;
 
-function TrdiRProSalesOrder.AddHistory(const StoreSta: string;
-  const RecNum: Integer; DocDate: TDateTime): Boolean;
-begin
-  try
-    FHistoryDoc.Count := FHistoryDoc.Count + 1;
-    FHistoryDoc.SetPosition(FHistoryDoc.Count - 1);
-    FHistoryDoc.SetString(StoreSta, fidStoreStation);
-    FHistoryDoc.SetInteger(RecNum, fidInvcNum);
-    FHistoryDoc.SetDateTime(DocDate, fidDocDate);
-    Result := True;
-  except
-    on e: Exception do
-      raise EPro8Exception.Create('Could not add to the Sales Order History: ' + e.Message +
-                                     ' (' + TableName + ')');
-  end;
-
-  // the calling routine should PostRecord
-end;
-
-procedure TrdiRProSalesOrder.CheckReadItemPosition(Index: Integer);
+procedure TRProSalesOrder.CheckReadItemPosition(Index: Integer);
 begin
   if Index > FNestedDoc.Count - 1 then
     raise EPro8Exception.Create('Tried to read past the number of nested receipt items (Index = ' +
@@ -867,7 +799,7 @@ begin
   FNestedDoc.SetPosition(Index);
 end;
 
-procedure TrdiRProSalesOrder.CheckWriteItemPosition(Index: Integer);
+procedure TRProSalesOrder.CheckWriteItemPosition(Index: Integer);
 begin
   if Index > FNestedDoc.Count - 1 then
     raise EPro8Exception.Create('Tried to write past the number of nested receipt items (Index = ' +
@@ -877,735 +809,725 @@ begin
   FNestedDoc.SetPosition(Index);
 end;
 
-procedure TrdiRProSalesOrder.ClearDepositTenders;
-var
-  DepTender: IRdaTender;
-begin
-  DepTender := FDepositsDoc.CustomInterface as IRdaTender;
-
-  while DepTender.TenderItems.length > 0 do
-    DepTender.DeleteItem(0);
-end;
-
-function TrdiRProSalesOrder.GetLastModified: TDatetime;
+function TRProSalesOrder.GetLastModified: TDatetime;
 begin
   FLastModified := FRProTable.Document.GetDateTime(fidDocLastEdit, FLastFieldNull);
   Result := FLastModified;
 end;
 
-function TrdiRProSalesOrder.GetAssociate: string;
+function TRProSalesOrder.GetAssociate: string;
 begin
   Result := FRProTable.Document.GetString(fidClerk, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetBalanceDue: Double;
+function TRProSalesOrder.GetBalanceDue: Double;
 begin
   Result := FRProTable.Document.GetDouble(fidSODue, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetBillToAddr1: string;
+function TRProSalesOrder.GetBillToAddr1: string;
 begin
   Result := FRProTable.Document.GetString(fidBillToAddr1, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetBillToAddr2: string;
+function TRProSalesOrder.GetBillToAddr2: string;
 begin
   Result := FRProTable.Document.GetString(fidBillToAddr2, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetBillToAddr3: string;
+function TRProSalesOrder.GetBillToAddr3: string;
 begin
   Result := FRProTable.Document.GetString(fidBillToAddr3, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetBillToCity: string;
+function TRProSalesOrder.GetBillToCity: string;
 begin
   Result := GetCityFromRPro8Addr3(BillToAddr3);
 end;
 
-function TrdiRProSalesOrder.GetBillToCompany: string;
+function TRProSalesOrder.GetBillToCompany: string;
 begin
   Result := FRProTable.Document.GetString(fidBillToCustComp, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetBillToFName: string;
+function TRProSalesOrder.GetBillToFName: string;
 begin
   Result := FRProTable.Document.GetString(fidBillToCustFName, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetBillToCustID: Integer;
+function TRProSalesOrder.GetBillToCustID: Integer;
 begin
   Result := FRProTable.Document.GetInteger(fidBillToCustID, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetBillToLName: string;
+function TRProSalesOrder.GetBillToLName: string;
 begin
   Result := FRProTable.Document.GetString(fidBillToCustLName, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetBillToCustSID: Int64;
+function TRProSalesOrder.GetBillToCustSID: Int64;
 begin
   Result := FRProTable.Document.GetInt64(fidBillToCustSID, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetBillToCustSIDStr: string;
+function TRProSalesOrder.GetBillToCustSIDStr: string;
 begin
   Result := FRProTable.Document.GetString(fidBillToCustSID, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetBillToEmail: string;
+function TRProSalesOrder.GetBillToEmail: string;
 begin
   Result := FRProTable.Document.GetString(fidBillToEMail, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetBillToFullName: string;
+function TRProSalesOrder.GetBillToFullName: string;
 begin
   Result := FRProTable.Document.GetString(fidBillToFullName, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetBillToInfo1: string;
+function TRProSalesOrder.GetBillToInfo1: string;
 begin
   Result := FRProTable.Document.GetString(fidBillToInfo1, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetBillToInfo2: string;
+function TRProSalesOrder.GetBillToInfo2: string;
 begin
   Result := FRProTable.Document.GetString(fidBillToInfo1, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetBillToPhone1: string;
+function TRProSalesOrder.GetBillToPhone1: string;
 begin
   Result := FRProTable.Document.GetString(fidBillToPhone1, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetBillToPhone2: string;
+function TRProSalesOrder.GetBillToPhone2: string;
 begin
   Result := FRProTable.Document.GetString(fidBillToPhone2, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetBillToState: string;
+function TRProSalesOrder.GetBillToState: string;
 begin
   Result := GetStateFromRPro8Addr3(BillToAddr3);
 end;
 
-function TrdiRProSalesOrder.GetBillToTitle: string;
+function TRProSalesOrder.GetBillToTitle: string;
 begin
   Result := FRProTable.Document.GetString(fidBillToCustTitle, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetBillToZip: string;
+function TRProSalesOrder.GetBillToZip: string;
 begin
   Result := FRProTable.Document.GetString(fidBillToZip, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetBusinessConsumer: string;
+function TRProSalesOrder.GetBusinessConsumer: string;
 begin
   Result := GetRProLookupItem(FRProTable.Document, fidBusCon, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetCustPONumber: string;
+function TRProSalesOrder.GetCustPONumber: string;
 begin
   Result := FRProTable.Document.GetString(fidCustPONumber, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetFlag1: string;
+function TRProSalesOrder.GetFlag1: string;
 begin
   Result := GetRProLookupItem(FRProTable.Document, fidFlag1, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetFlag2: string;
+function TRProSalesOrder.GetFlag2: string;
 begin
   Result := GetRProLookupItem(FRProTable.Document, fidFlag2, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetFlag3: string;
+function TRProSalesOrder.GetFlag3: string;
 begin
   Result := GetRProLookupItem(FRProTable.Document, fidFlag3, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetItemCount: Integer;
+function TRProSalesOrder.GetItemCount: Integer;
 begin
   Result := FRProTable.Document.GetInteger(fidItemsCount, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetNestedCount: Integer;
+function TRProSalesOrder.GetNestedCount: Integer;
 begin
   Result := FNestedDoc.Count;
 end;
 
-function TrdiRProSalesOrder.GetShipToAddr1: string;
+function TRProSalesOrder.GetShipToAddr1: string;
 begin
   Result := FRProTable.Document.GetString(fidShipToAddr1, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetShipToAddr2: string;
+function TRProSalesOrder.GetShipToAddr2: string;
 begin
   Result := FRProTable.Document.GetString(fidShipToAddr2, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetShipToAddr3: string;
+function TRProSalesOrder.GetShipToAddr3: string;
 begin
   Result := FRProTable.Document.GetString(fidShipToAddr3, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetShipToCity: string;
+function TRProSalesOrder.GetShipToCity: string;
 begin
   Result := GetCityFromRPro8Addr3(ShipToAddr3);
 end;
 
-function TrdiRProSalesOrder.GetShipToCompany: string;
+function TRProSalesOrder.GetShipToCompany: string;
 begin
   Result := FRProTable.Document.GetString(fidShipToCustComp, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetShipToFName: string;
+function TRProSalesOrder.GetShipToFName: string;
 begin
   Result := FRProTable.Document.GetString(fidShipToCustFName, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetShipToCustID: Integer;
+function TRProSalesOrder.GetShipToCustID: Integer;
 begin
   Result := FRProTable.Document.GetInteger(fidShipToCustID, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetShipToLName: string;
+function TRProSalesOrder.GetShipToLName: string;
 begin
   Result := FRProTable.Document.GetString(fidShipToCustLName, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetShipToCustSID: Int64;
+function TRProSalesOrder.GetShipToCustSID: Int64;
 begin
   Result := FRProTable.Document.GetInt64(fidShipToCustSID, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetShipToCustSIDStr: string;
+function TRProSalesOrder.GetShipToCustSIDStr: string;
 begin
   Result := FRProTable.Document.GetString(fidShipToCustSID, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetShipToEmail: string;
+function TRProSalesOrder.GetShipToEmail: string;
 begin
   Result := FRProTable.Document.GetString(fidShipToEMail, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetShipToFullName: string;
+function TRProSalesOrder.GetShipToFullName: string;
 begin
   Result := FRProTable.Document.GetString(fidShipToFullName, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetShipToInfo1: string;
+function TRProSalesOrder.GetShipToInfo1: string;
 begin
   Result := FRProTable.Document.GetString(fidShipToInfo1, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetShipToInfo2: string;
+function TRProSalesOrder.GetShipToInfo2: string;
 begin
   Result := FRProTable.Document.GetString(fidShipToInfo2, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetShipToPhone1: string;
+function TRProSalesOrder.GetShipToPhone1: string;
 begin
   Result := FRProTable.Document.GetString(fidShipToPhone1, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetShipToPhone2: string;
+function TRProSalesOrder.GetShipToPhone2: string;
 begin
   Result := FRProTable.Document.GetString(fidShipToPhone2, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetShipToState: string;
+function TRProSalesOrder.GetShipToState: string;
 begin
   Result := GetStateFromRPro8Addr3(ShipToAddr3);
 end;
 
-function TrdiRProSalesOrder.GetShipToTitle: string;
+function TRProSalesOrder.GetShipToTitle: string;
 begin
   Result := FRProTable.Document.GetString(fidShipToCustTitle, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetShipToZip: string;
+function TRProSalesOrder.GetShipToZip: string;
 begin
   Result := FRProTable.Document.GetString(fidShipToZip, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetSONum: string;
+function TRProSalesOrder.GetSONum: string;
 begin
   Result := FRProTable.Document.GetString(fidSONum, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetSOStNum: string;
+function TRProSalesOrder.GetSOStNum: string;
 begin
   Result := FRProTable.Document.GetString(fidSOStNum, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetSOType: string;
+function TRProSalesOrder.GetSOType: string;
 begin
   Result := GetRProLookupItem(FRProTable.Document, fidSOType, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetStation: string;
+function TRProSalesOrder.GetStation: string;
 begin
   Result := FRProTable.Document.GetString(fidStation, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetStoreStation: string;
+function TRProSalesOrder.GetStoreStation: string;
 begin
   Result := FRProTable.Document.GetString(fidStoreStation, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetCancelDate: TDateTime;
+function TRProSalesOrder.GetCancelDate: TDateTime;
 begin
   Result := FRProTable.Document.GetDateTime(fidSOCancelDate, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetComment: string;
+function TRProSalesOrder.GetComment: string;
 begin
   Result := FRProTable.Document.GetString(fidSOComment, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetOrderedDate: TDateTime;
+function TRProSalesOrder.GetOrderedDate: TDateTime;
 begin
   Result := FRProTable.Document.GetDateTime(fidSOOrderedDate, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetPaymentDueDate: TDateTime;
+function TRProSalesOrder.GetPaymentDueDate: TDateTime;
 begin
   Result := FRProTable.Document.GetDateTime(fidSOPmtDueDate, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetShippedDate: TDateTime;
+function TRProSalesOrder.GetShippedDate: TDateTime;
 begin
   Result := FRProTable.Document.GetDateTime(fidSOShippedDate, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetTotalDueDate: TDateTime;
+function TRProSalesOrder.GetTotalDueDate: TDateTime;
 begin
   Result := FRProTable.Document.GetDateTime(fidSOTotDueDate, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetUnfilledPercent: double;
+function TRProSalesOrder.GetUnfilledPercent: double;
 begin
   Result := FRProTable.Document.GetDouble(fidUnfilledPrc, FLastFieldNull);
 end;
 
-procedure TrdiRProSalesOrder.SetAssociate(const Value: string);
+procedure TRProSalesOrder.SetAssociate(const Value: string);
 begin
   FRProTable.Document.SetString(Value, fidClerk);
 end;
 
-procedure TrdiRProSalesOrder.SetBillToAddr1(const Value: string);
+procedure TRProSalesOrder.SetBillToAddr1(const Value: string);
 begin
   FRProTable.Document.SetString(Value, fidBillToAddr1);
 end;
 
-procedure TrdiRProSalesOrder.SetBillToAddr2(const Value: string);
+procedure TRProSalesOrder.SetBillToAddr2(const Value: string);
 begin
   FRProTable.Document.SetString(Value, fidBillToAddr2);
 end;
 
-procedure TrdiRProSalesOrder.SetBillToAddr3(const Value: string);
+procedure TRProSalesOrder.SetBillToAddr3(const Value: string);
 begin
   FRProTable.Document.SetString(Value, fidBillToAddr3);
 end;
 
-procedure TrdiRProSalesOrder.SetBillToCompany(const Value: string);
+procedure TRProSalesOrder.SetBillToCompany(const Value: string);
 begin
   FRProTable.Document.SetString(Value, fidBillToCustComp);
 end;
 
-procedure TrdiRProSalesOrder.SetBillToFName(const Value: string);
+procedure TRProSalesOrder.SetBillToFName(const Value: string);
 begin
   FRProTable.Document.SetString(Value, fidBillToCustFName);
 end;
 
-procedure TrdiRProSalesOrder.SetBillToCustID(const Value: Integer);
+procedure TRProSalesOrder.SetBillToCustID(const Value: Integer);
 begin
   FRProTable.Document.SetInteger(Value, fidBillToCustID);
 end;
 
-procedure TrdiRProSalesOrder.SetBillToLName(const Value: string);
+procedure TRProSalesOrder.SetBillToLName(const Value: string);
 begin
   FRProTable.Document.SetString(Value, fidBillToCustLName);
 end;
 
-procedure TrdiRProSalesOrder.SetBillToPhone1(const Value: string);
+procedure TRProSalesOrder.SetBillToPhone1(const Value: string);
 begin
   FRProTable.Document.SetString(Value, fidBillToPhone1);
 end;
 
-procedure TrdiRProSalesOrder.SetBillToCustSID(const Value: Int64);
+procedure TRProSalesOrder.SetBillToCustSID(const Value: Int64);
 begin
   FRProTable.Document.SetInt64(Value, fidBillToCustSID);
 end;
 
-procedure TrdiRProSalesOrder.SetBillToTitle(const Value: string);
+procedure TRProSalesOrder.SetBillToTitle(const Value: string);
 begin
   FRProTable.Document.SetString(Value, fidBillToCustTitle);
 end;
 
-procedure TrdiRProSalesOrder.SetBillToZip(const Value: string);
+procedure TRProSalesOrder.SetBillToZip(const Value: string);
 begin
   FRProTable.Document.SetString(Value, fidBillToZip);
 end;
 
-procedure TrdiRProSalesOrder.SetCustPONumber(const Value: string);
+procedure TRProSalesOrder.SetCustPONumber(const Value: string);
 begin
   FRProTable.Document.SetString(Value, fidCustPONumber);
 end;
 
-procedure TrdiRProSalesOrder.SetFlag1(const Value: string);
+procedure TRProSalesOrder.SetFlag1(const Value: string);
 begin
   SetRProLookupItem(FRProTable.Document, fidFlag1, Value, LookupLengthMatch);
 end;
 
-procedure TrdiRProSalesOrder.SetFlag2(const Value: string);
+procedure TRProSalesOrder.SetFlag2(const Value: string);
 begin
   SetRProLookupItem(FRProTable.Document, fidFlag2, Value, LookupLengthMatch);
 end;
 
-procedure TrdiRProSalesOrder.SetFlag3(const Value: string);
+procedure TRProSalesOrder.SetFlag3(const Value: string);
 begin
   SetRProLookupItem(FRProTable.Document, fidFlag3, Value, LookupLengthMatch);
 end;
 
-procedure TrdiRProSalesOrder.SetShipToAddr1(const Value: string);
+procedure TRProSalesOrder.SetShipToAddr1(const Value: string);
 begin
   FRProTable.Document.SetString(Value, fidShipToAddr1);
 end;
 
-procedure TrdiRProSalesOrder.SetShipToAddr2(const Value: string);
+procedure TRProSalesOrder.SetShipToAddr2(const Value: string);
 begin
   FRProTable.Document.SetString(Value, fidShipToAddr2);
 end;
 
-procedure TrdiRProSalesOrder.SetShipToAddr3(const Value: string);
+procedure TRProSalesOrder.SetShipToAddr3(const Value: string);
 begin
   FRProTable.Document.SetString(Value, fidShipToAddr3);
 end;
 
-procedure TrdiRProSalesOrder.SetShipToCompany(const Value: string);
+procedure TRProSalesOrder.SetShipToCompany(const Value: string);
 begin
   FRProTable.Document.SetString(Value, fidShipToCustComp);
 end;
 
-procedure TrdiRProSalesOrder.SetShipToFName(const Value: string);
+procedure TRProSalesOrder.SetShipToFName(const Value: string);
 begin
   FRProTable.Document.SetString(Value, fidShipToCustFName);
 end;
 
-procedure TrdiRProSalesOrder.SetShipToCustID(const Value: Integer);
+procedure TRProSalesOrder.SetShipToCustID(const Value: Integer);
 begin
   FRProTable.Document.SetInteger(Value, fidShipToCustID);
 end;
 
-procedure TrdiRProSalesOrder.SetShipToLName(const Value: string);
+procedure TRProSalesOrder.SetShipToLName(const Value: string);
 begin
   FRProTable.Document.SetString(Value, fidShipToCustLName);
 end;
 
-procedure TrdiRProSalesOrder.SetShipToPhone1(const Value: string);
+procedure TRProSalesOrder.SetShipToPhone1(const Value: string);
 begin
   FRProTable.Document.SetString(Value, fidShipToPhone1);
 end;
 
-procedure TrdiRProSalesOrder.SetShipToCustSID(const Value: Int64);
+procedure TRProSalesOrder.SetShipToCustSID(const Value: Int64);
 begin
   FRProTable.Document.SetInt64(Value, fidShipToCustSID);
 end;
 
-procedure TrdiRProSalesOrder.SetShipToTitle(const Value: string);
+procedure TRProSalesOrder.SetShipToTitle(const Value: string);
 begin
   FRProTable.Document.SetString(Value, fidShipToCustTitle);
 end;
 
-procedure TrdiRProSalesOrder.SetShipToZip(const Value: string);
+procedure TRProSalesOrder.SetShipToZip(const Value: string);
 begin
   FRProTable.Document.SetString(Value, fidShipToZip);
 end;
 
-procedure TrdiRProSalesOrder.SetSONum(const Value: string);
+procedure TRProSalesOrder.SetSONum(const Value: string);
 begin
   FRProTable.Document.SetString(Value, fidSONum);
 end;
 
-procedure TrdiRProSalesOrder.SetSOStNum(const Value: string);
+procedure TRProSalesOrder.SetSOStNum(const Value: string);
 begin
   FRProTable.Document.SetString(Value, fidSOStNum);
 end;
 
-procedure TrdiRProSalesOrder.SetStation(const Value: string);
+procedure TRProSalesOrder.SetStation(const Value: string);
 begin
   FRProTable.Document.SetString(Value, fidStation);
 end;
 
-procedure TrdiRProSalesOrder.SetBillToCustSIDStr(const Value: string);
+procedure TRProSalesOrder.SetBillToCustSIDStr(const Value: string);
 begin
   FRProTable.Document.SetString(Value, fidBillToCustSID);
 end;
 
-procedure TrdiRProSalesOrder.SetBillToEmail(const Value: string);
+procedure TRProSalesOrder.SetBillToEmail(const Value: string);
 begin
   FRProTable.Document.SetString(value, fidBillToEMail);
 end;
 
-procedure TrdiRProSalesOrder.SetBillToInfo1(const Value: string);
+procedure TRProSalesOrder.SetBillToInfo1(const Value: string);
 begin
   FRProTable.Document.SetString(Value, fidBillToInfo1);
 end;
 
-procedure TrdiRProSalesOrder.SetBillToInfo2(const Value: string);
+procedure TRProSalesOrder.SetBillToInfo2(const Value: string);
 begin
   FRProTable.Document.SetString(Value, fidBillToInfo2);
 end;
 
-procedure TrdiRProSalesOrder.SetShipToCustSIDStr(const Value: string);
+procedure TRProSalesOrder.SetShipToCustSIDStr(const Value: string);
 begin
   FRProTable.Document.SetString(Value, fidShipToCustSID);
 end;
 
-procedure TrdiRProSalesOrder.SetShipToEmail(const Value: string);
+procedure TRProSalesOrder.SetShipToEmail(const Value: string);
 begin
   FRProTable.Document.SetString(Value, fidShipToEMail);
 end;
 
-procedure TrdiRProSalesOrder.SetShipToInfo1(const Value: string);
+procedure TRProSalesOrder.SetShipToInfo1(const Value: string);
 begin
   FRProTable.Document.SetString(Value, fidShipToInfo1);
 end;
 
-procedure TrdiRProSalesOrder.SetShipToInfo2(const Value: string);
+procedure TRProSalesOrder.SetShipToInfo2(const Value: string);
 begin
   FRProTable.Document.SetString(Value, fidShipToInfo2);
 end;
 
-procedure TrdiRProSalesOrder.SetSOType(const Value: string);
+procedure TRProSalesOrder.SetSOType(const Value: string);
 begin
   SetRProLookupItem(FRProTable.Document, fidSOType, Value, LookupLengthMatch);
 end;
 
-function TrdiRProSalesOrder.GetItemALU(Index: Integer): string;
+function TRProSalesOrder.GetItemALU(Index: Integer): string;
 begin
   CheckReadItemPosition(Index);
   Result := FNestedDoc.GetString(fidALU, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetItemAssociate(Index: Integer): string;
+function TRProSalesOrder.GetItemAssociate(Index: Integer): string;
 begin
   CheckReadItemPosition(Index);
   Result := FNestedDoc.GetString(fidClerk, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetItemAttr(Index: Integer): string;
+function TRProSalesOrder.GetItemAttr(Index: Integer): string;
 begin
   CheckReadItemPosition(Index);
   Result := FNestedDoc.GetString(fidAttr, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetItemAux1(Index: Integer): string;
+function TRProSalesOrder.GetItemAux1(Index: Integer): string;
 begin
   CheckReadItemPosition(Index);
   Result := GetRProLookupItem(FNestedDoc, fidInvnAux0, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetItemAux2(Index: Integer): string;
+function TRProSalesOrder.GetItemAux2(Index: Integer): string;
 begin
   CheckReadItemPosition(Index);
   Result := GetRProLookupItem(FNestedDoc, fidInvnAux0 + 1, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetItemAux3(Index: Integer): string;
+function TRProSalesOrder.GetItemAux3(Index: Integer): string;
 begin
   CheckReadItemPosition(Index);
   Result := GetRProLookupItem(FNestedDoc, fidInvnAux0 + 2, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetItemAux4(Index: Integer): string;
+function TRProSalesOrder.GetItemAux4(Index: Integer): string;
 begin
   CheckReadItemPosition(Index);
   Result := GetRProLookupItem(FNestedDoc, fidInvnAux0 + 3, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetItemAux5(Index: Integer): string;
+function TRProSalesOrder.GetItemAux5(Index: Integer): string;
 begin
   CheckReadItemPosition(Index);
   Result := GetRProLookupItem(FNestedDoc, fidInvnAux0 + 4, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetItemAux6(Index: Integer): string;
+function TRProSalesOrder.GetItemAux6(Index: Integer): string;
 begin
   CheckReadItemPosition(Index);
   Result := GetRProLookupItem(FNestedDoc, fidInvnAux0 + 5, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetItemAux7(Index: Integer): string;
+function TRProSalesOrder.GetItemAux7(Index: Integer): string;
 begin
   CheckReadItemPosition(Index);
   Result := GetRProLookupItem(FNestedDoc, fidInvnAux0 + 6, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetItemAux8(Index: Integer): string;
+function TRProSalesOrder.GetItemAux8(Index: Integer): string;
 begin
   CheckReadItemPosition(Index);
   Result := GetRProLookupItem(FNestedDoc, fidInvnAux7, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetItemCaseQty(Index: Integer): Double;
+function TRProSalesOrder.GetItemCaseQty(Index: Integer): Double;
 begin
   CheckReadItemPosition(Index);
   Result := FNestedDoc.GetDouble(fidQtyCas, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetItemCaseStoreQty(Index: Integer): Double;
+function TRProSalesOrder.GetItemCaseStoreQty(Index: Integer): Double;
 begin
   CheckReadItemPosition(Index);
   Result := FNestedDoc.GetDouble(fidQtyO_HCas, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetItemCoeff(Index: Integer): Double;
+function TRProSalesOrder.GetItemCoeff(Index: Integer): Double;
 begin
   CheckReadItemPosition(Index);
   Result := FNestedDoc.GetDouble(fidCoeff, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetItemCommissionAmount(Index: Integer): Double;
+function TRProSalesOrder.GetItemCommissionAmount(Index: Integer): Double;
 begin
   CheckReadItemPosition(Index);
   Result := FNestedDoc.GetDouble(fidCommAmt, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetItemCommissionCode(Index: Integer): Integer;
+function TRProSalesOrder.GetItemCommissionCode(Index: Integer): Integer;
 begin
   CheckReadItemPosition(Index);
   Result := FNestedDoc.GetInteger(fidCommCod, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetItemCost(Index: Integer): Double;
+function TRProSalesOrder.GetItemCost(Index: Integer): Double;
 begin
   CheckReadItemPosition(Index);
   Result := FNestedDoc.GetDouble(fidDocItmCost, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetItemDCS(Index: Integer): string;
+function TRProSalesOrder.GetItemDCS(Index: Integer): string;
 begin
   CheckReadItemPosition(Index);
   Result := FNestedDoc.GetString(fidDC, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetItemDCSName(Index: Integer): string;
+function TRProSalesOrder.GetItemDCSName(Index: Integer): string;
 begin
   CheckReadItemPosition(Index);
   Result := FNestedDoc.GetString(fidDeptName, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetItemDesc1(Index: Integer): string;
+function TRProSalesOrder.GetItemDesc1(Index: Integer): string;
 begin
   CheckReadItemPosition(Index);
   Result := FNestedDoc.GetString(fidDesc1, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetItemDesc2(Index: Integer): string;
+function TRProSalesOrder.GetItemDesc2(Index: Integer): string;
 begin
   CheckReadItemPosition(Index);
   Result := FNestedDoc.GetString(fidDesc2, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetItemDesc3(Index: Integer): string;
+function TRProSalesOrder.GetItemDesc3(Index: Integer): string;
 begin
   CheckReadItemPosition(Index);
   Result := FNestedDoc.GetString(fidDesc3, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetItemDesc4(Index: Integer): string;
+function TRProSalesOrder.GetItemDesc4(Index: Integer): string;
 begin
   CheckReadItemPosition(Index);
   Result := FNestedDoc.GetString(fidDesc4, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetItemDiscountAmount(Index: Integer): Double;
+function TRProSalesOrder.GetItemDiscountAmount(Index: Integer): Double;
 begin
   CheckReadItemPosition(Index);
   Result := FNestedDoc.GetDouble(fidDisc, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetItemDiscountPercent(Index: Integer): Double;
+function TRProSalesOrder.GetItemDiscountPercent(Index: Integer): Double;
 begin
   CheckReadItemPosition(Index);
   Result := FNestedDoc.GetDouble(fidDiscPercent, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetItemDiscountType(Index: Integer): string;
+function TRProSalesOrder.GetItemDiscountType(Index: Integer): string;
 begin
   CheckReadItemPosition(Index);
   Result := GetRProLookupItem(FNestedDoc, fidDiscLvl, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetItemDiscSchedNum(Index: Integer): Integer;
+function TRProSalesOrder.GetItemDiscSchedNum(Index: Integer): Integer;
 begin
   CheckReadItemPosition(Index);
   Result := FNestedDoc.GetInteger(fidSchedNo, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetItemEDIStatus(Index: Integer): string;
+function TRProSalesOrder.GetItemEDIStatus(Index: Integer): string;
 begin
   CheckReadItemPosition(Index);
   Result := GetRProLookupItem(FNestedDoc, fidEDIStatus, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetItemExtCost(Index: Integer): Double;
+function TRProSalesOrder.GetItemExtCost(Index: Integer): Double;
 begin
   CheckReadItemPosition(Index);
   Result := FNestedDoc.GetDouble(fidExtCost, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetItemExtPrice(Index: Integer): Double;
+function TRProSalesOrder.GetItemExtPrice(Index: Integer): Double;
 begin
   CheckReadItemPosition(Index);
   Result := FNestedDoc.GetDouble(fidExtPrc, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetItemExtPriceWTax(Index: Integer): Double;
+function TRProSalesOrder.GetItemExtPriceWTax(Index: Integer): Double;
 begin
   CheckReadItemPosition(Index);
   Result := FNestedDoc.GetDouble(fidExtPwt, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetItemFC1Price(Index: Integer): Double;
+function TRProSalesOrder.GetItemFC1Price(Index: Integer): Double;
 begin
   CheckReadItemPosition(Index);
   Result := FNestedDoc.GetDouble(fidFC1Prc, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetItemFC1PriceWTax(Index: Integer): Double;
+function TRProSalesOrder.GetItemFC1PriceWTax(Index: Integer): Double;
 begin
   CheckReadItemPosition(Index);
   Result := FNestedDoc.GetDouble(fidFC1PWT, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetItemItemModified(Index: Integer): Boolean;
+function TRProSalesOrder.GetItemItemModified(Index: Integer): Boolean;
 begin
   CheckReadItemPosition(Index);
   Result := FNestedDoc.GetBoolean(fidItemModified, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetItemKitComponent(Index: Integer): string;
+function TRProSalesOrder.GetItemKitComponent(Index: Integer): string;
 begin
   CheckReadItemPosition(Index);
   Result := FNestedDoc.GetString(fidKitComponent, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetItemKitFlag(Index: Integer): string;
+function TRProSalesOrder.GetItemKitFlag(Index: Integer): string;
 begin
   CheckReadItemPosition(Index);
   Result := GetRProLookupItem(FNestedDoc, fidDocItmKitFlg, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetItemSID(Index: Integer): Int64;
+function TRProSalesOrder.GetItemSID(Index: Integer): Int64;
 begin
   CheckReadItemPosition(Index);
   Result := FNestedDoc.GetInt64(fidItemSID, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetItemSIDStr(Index: Integer): string;
+function TRProSalesOrder.GetItemSIDStr(Index: Integer): string;
 var
   i: integer;
 begin
@@ -1617,361 +1539,361 @@ begin
     result := '';
 end;
 
-function TrdiRProSalesOrder.GetItemLookup(Index: Integer): string;
+function TRProSalesOrder.GetItemLookup(Index: Integer): string;
 begin
   CheckReadItemPosition(Index);
   Result := FNestedDoc.GetString(fidItemLookup, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetItemMarginAmount(Index: Integer): Double;
+function TRProSalesOrder.GetItemMarginAmount(Index: Integer): Double;
 begin
   CheckReadItemPosition(Index);
   Result := FNestedDoc.GetDouble(fidMrgD, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetItemMarginPercent(Index: Integer): Integer;
+function TRProSalesOrder.GetItemMarginPercent(Index: Integer): Integer;
 begin
   CheckReadItemPosition(Index);
   Result := FNestedDoc.GetInteger(fidMrgP, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetItemMarginWTax(Index: Integer): Double;
+function TRProSalesOrder.GetItemMarginWTax(Index: Integer): Double;
 begin
   CheckReadItemPosition(Index);
   Result := FNestedDoc.GetDouble(fidMrgT, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetItemMarkUpPercent(Index: Integer): Integer;
+function TRProSalesOrder.GetItemMarkUpPercent(Index: Integer): Integer;
 begin
   CheckReadItemPosition(Index);
   Result := FNestedDoc.GetInteger(fidMupP, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetItemNDecimals(Index: Integer): Integer;
+function TRProSalesOrder.GetItemNDecimals(Index: Integer): Integer;
 begin
   CheckReadItemPosition(Index);
   Result := FNestedDoc.GetInteger(fidNumberOfDecimals, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetItemNum(Index: Integer): Integer;
+function TRProSalesOrder.GetItemNum(Index: Integer): Integer;
 begin
   Result := StrToInt(GetItemLookup(Index));
 end;
 
-function TrdiRProSalesOrder.GetItemOrigPrice(Index: Integer): Double;
+function TRProSalesOrder.GetItemOrigPrice(Index: Integer): Double;
 begin
   CheckReadItemPosition(Index);
   Result := FNestedDoc.GetDouble(fidOrigPrc, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetItemOrigPriceWTax(Index: Integer): Double;
+function TRProSalesOrder.GetItemOrigPriceWTax(Index: Integer): Double;
 begin
   CheckReadItemPosition(Index);
   Result := FNestedDoc.GetDouble(fidOrigPWT, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetItemOrigTax(Index: Integer): Double;
+function TRProSalesOrder.GetItemOrigTax(Index: Integer): Double;
 begin
   CheckReadItemPosition(Index);
   Result := FNestedDoc.GetDouble(fidOrigTax, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetItemPkgItemNo(Index: Integer): Integer;
+function TRProSalesOrder.GetItemPkgItemNo(Index: Integer): Integer;
 begin
   CheckReadItemPosition(Index);
   Result := FNestedDoc.GetInteger(fidDocItmPkgItmNo, FLastFieldNull)
 end;
 
-function TrdiRProSalesOrder.GetItemPrice(Index: Integer): Double;
+function TRProSalesOrder.GetItemPrice(Index: Integer): Double;
 begin
   CheckReadItemPosition(Index);
   Result := FNestedDoc.GetDouble(fidDocItmPrc, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetItemPriceLevel(Index: Integer): string;
+function TRProSalesOrder.GetItemPriceLevel(Index: Integer): string;
 begin
   CheckReadItemPosition(Index);
   Result := GetRProLookupItem(FNestedDoc, fidPrcLvl, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetItemPriceWTax(Index: Integer): Double;
+function TRProSalesOrder.GetItemPriceWTax(Index: Integer): Double;
 begin
   CheckReadItemPosition(Index);
   Result := FNestedDoc.GetDouble(fidDocItmPWT, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetItemQty(Index: Integer): Double;
+function TRProSalesOrder.GetItemQty(Index: Integer): Double;
 begin
   CheckReadItemPosition(Index);
   Result := FNestedDoc.GetDouble(fidQty, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetItemSize(Index: Integer): string;
+function TRProSalesOrder.GetItemSize(Index: Integer): string;
 begin
   CheckReadItemPosition(Index);
   Result := FNestedDoc.Getstring(fidSIZE, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetItemSOPrice(Index: Integer): Double;
+function TRProSalesOrder.GetItemSOPrice(Index: Integer): Double;
 begin
   CheckReadItemPosition(Index);
   Result := FNestedDoc.GetDouble(fidDocItmPrc, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetItemSPIF(Index: Integer): Double;
+function TRProSalesOrder.GetItemSPIF(Index: Integer): Double;
 begin
   CheckReadItemPosition(Index);
   Result := FNestedDoc.GetDouble(fidSPIF, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetItemStoreQty(Index: Integer): Double;
+function TRProSalesOrder.GetItemStoreQty(Index: Integer): Double;
 begin
   CheckReadItemPosition(Index);
   Result := FNestedDoc.GetDouble(fidQtyO_H, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetItemTaxAmount(Index: Integer): Double;
+function TRProSalesOrder.GetItemTaxAmount(Index: Integer): Double;
 begin
   CheckReadItemPosition(Index);
   Result := FNestedDoc.GetDouble(fidTaxAmt, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetItemTaxCode(Index: Integer): string;
+function TRProSalesOrder.GetItemTaxCode(Index: Integer): string;
 begin
   CheckReadItemPosition(Index);
   Result := GetRProLookupItem(FNestedDoc, fidTax, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetItemTaxPercent(Index: Integer): Double;
+function TRProSalesOrder.GetItemTaxPercent(Index: Integer): Double;
 begin
   CheckReadItemPosition(Index);
   Result := FNestedDoc.GetDouble(fidTaxP, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetItemTotalOnHand(Index: Integer): Double;
+function TRProSalesOrder.GetItemTotalOnHand(Index: Integer): Double;
 begin
   CheckReadItemPosition(Index);
   Result := FNestedDoc.GetDouble(fidTotO_H, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetItemUDF1(Index: Integer): string;
+function TRProSalesOrder.GetItemUDF1(Index: Integer): string;
 begin
   CheckReadItemPosition(Index);
   Result := GetRProLookupItem(FNestedDoc, fidUsrCd0, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetItemUDF2(Index: Integer): string;
+function TRProSalesOrder.GetItemUDF2(Index: Integer): string;
 begin
   CheckReadItemPosition(Index);
   Result := GetRProLookupItem(FNestedDoc, fidUsrCd1, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetItemUDF3(Index: Integer): string;
+function TRProSalesOrder.GetItemUDF3(Index: Integer): string;
 begin
   CheckReadItemPosition(Index);
   Result := GetRProLookupItem(FNestedDoc, fidUsrCd2, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetItemUDF4(Index: Integer): string;
+function TRProSalesOrder.GetItemUDF4(Index: Integer): string;
 begin
   CheckReadItemPosition(Index);
   Result := GetRProLookupItem(FNestedDoc, fidUsrCd3, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetItemUnitsCase(Index: Integer): Integer;
+function TRProSalesOrder.GetItemUnitsCase(Index: Integer): Integer;
 begin
   CheckReadItemPosition(Index);
   Result := FNestedDoc.GetInteger(fidUnitsPerCase, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetItemUPC(Index: Integer): string;
+function TRProSalesOrder.GetItemUPC(Index: Integer): string;
 begin
   CheckReadItemPosition(Index);
   Result := FNestedDoc.GetString(fidUPC, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetItemVendorCode(Index: Integer): string;
+function TRProSalesOrder.GetItemVendorCode(Index: Integer): string;
 begin
   CheckReadItemPosition(Index);
   Result := FNestedDoc.GetString(fidVC, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetSerialNum(Index: Integer): string;
+function TRProSalesOrder.GetSerialNum(Index: Integer): string;
 begin
   raise EPro8Exception.Create('I don''t know how to get the serial number!!! (' + TableName + ').');
 end;
 
-procedure TrdiRProSalesOrder.SetItemALU(Index: Integer; const Value: string);
+procedure TRProSalesOrder.SetItemALU(Index: Integer; const Value: string);
 begin
   CheckWriteItemPosition(Index);
   FNestedDoc.SetString(Value, fidALU);
 end;
 
-procedure TrdiRProSalesOrder.SetItemAssociate(Index: Integer; const Value: string);
+procedure TRProSalesOrder.SetItemAssociate(Index: Integer; const Value: string);
 begin
   CheckWriteItemPosition(Index);
   FNestedDoc.SetString(Value, fidClerk);
 end;
 
-procedure TrdiRProSalesOrder.SetItemAttr(Index: Integer; const Value: string);
+procedure TRProSalesOrder.SetItemAttr(Index: Integer; const Value: string);
 begin
   CheckWriteItemPosition(Index);
   FNestedDoc.SetString(Value, fidAttr);
 end;
 
-procedure TrdiRProSalesOrder.SetItemCommissionAmount(Index: Integer; const Value: Double);
+procedure TRProSalesOrder.SetItemCommissionAmount(Index: Integer; const Value: Double);
 begin
   raise EPro8Exception.Create('set commission amount - not implemented (' + TableName + ')');
 end;
 
-procedure TrdiRProSalesOrder.SetItemCommissionCode(Index: Integer; const Value: Integer);
+procedure TRProSalesOrder.SetItemCommissionCode(Index: Integer; const Value: Integer);
 begin
   raise EPro8Exception.Create('set commission code - not implemented (' + TableName + ')');
 end;
 
-procedure TrdiRProSalesOrder.SetItemCost(Index: Integer; const Value: Double);
+procedure TRProSalesOrder.SetItemCost(Index: Integer; const Value: Double);
 begin
   raise EPro8Exception.Create('set item cost - not implemented (' + TableName + ')');
 end;
 
-procedure TrdiRProSalesOrder.SetItemDCS(Index: Integer; const Value: string);
+procedure TRProSalesOrder.SetItemDCS(Index: Integer; const Value: string);
 begin
   raise EPro8Exception.Create('set item dcs - not implemented (' + TableName + ')');
 end;
 
-procedure TrdiRProSalesOrder.SetItemDCSName(Index: Integer; const Value: string);
+procedure TRProSalesOrder.SetItemDCSName(Index: Integer; const Value: string);
 begin
   raise EPro8Exception.Create('set item dcs name - not implemented (' + TableName + ')');
 end;
 
-procedure TrdiRProSalesOrder.SetItemDesc1(Index: Integer; const Value: string);
+procedure TRProSalesOrder.SetItemDesc1(Index: Integer; const Value: string);
 begin
   CheckWriteItemPosition(Index);
   FNestedDoc.SetString(Value, fidDesc1);
 end;
 
-procedure TrdiRProSalesOrder.SetItemDesc2(Index: Integer; const Value: string);
+procedure TRProSalesOrder.SetItemDesc2(Index: Integer; const Value: string);
 begin
   CheckWriteItemPosition(Index);
   FNestedDoc.SetString(Value, fidDesc2);
 end;
 
-procedure TrdiRProSalesOrder.SetItemDesc3(Index: Integer; const Value: string);
+procedure TRProSalesOrder.SetItemDesc3(Index: Integer; const Value: string);
 begin
   CheckWriteItemPosition(Index);
   FNestedDoc.SetString(Value, fidDesc3);
 end;
 
-procedure TrdiRProSalesOrder.SetItemDesc4(Index: Integer; const Value: string);
+procedure TRProSalesOrder.SetItemDesc4(Index: Integer; const Value: string);
 begin
   CheckWriteItemPosition(Index);
   FNestedDoc.SetString(Value, fidDesc4);
 end;
 
-procedure TrdiRProSalesOrder.SetItemDiscountAmount(Index: Integer; const Value: Double);
+procedure TRProSalesOrder.SetItemDiscountAmount(Index: Integer; const Value: Double);
 begin
   CheckWriteItemPosition(Index);
   FNestedDoc.SetDouble(Value, fidDisc);
 end;
 
-procedure TrdiRProSalesOrder.SetItemDiscountPercent(Index: Integer; const Value: Double);
+procedure TRProSalesOrder.SetItemDiscountPercent(Index: Integer; const Value: Double);
 begin
   CheckReadItemPosition(Index);
   FNestedDoc.SetDouble(Value, fidDiscPercent);
 end;
 
-procedure TrdiRProSalesOrder.SetItemDiscountType(Index: Integer; const Value: string);
+procedure TRProSalesOrder.SetItemDiscountType(Index: Integer; const Value: string);
 begin
   CheckReadItemPosition(Index);
   SetRProLookupItem(FNestedDoc, fidDiscLvl, Value, LookupLengthMatch);
 end;
 
-procedure TrdiRProSalesOrder.SetItemDiscSchedNum(Index: Integer; const Value: Integer);
+procedure TRProSalesOrder.SetItemDiscSchedNum(Index: Integer; const Value: Integer);
 begin
   raise EPro8Exception.Create('set item discount schedule num - not implemented (' + TableName + ')');
 end;
 
-procedure TrdiRProSalesOrder.SetItemEDIStatus(Index: Integer; const Value: string);
+procedure TRProSalesOrder.SetItemEDIStatus(Index: Integer; const Value: string);
 begin
   raise EPro8Exception.Create('set item edi status - not implemented (' + TableName + ')');
 end;
 
-procedure TrdiRProSalesOrder.SetItemFC1Price(Index: Integer; const Value: Double);
+procedure TRProSalesOrder.SetItemFC1Price(Index: Integer; const Value: Double);
 begin
   raise EPro8Exception.Create('set item forreign currency price - not implemented (' + TableName + ')');
 end;
 
-procedure TrdiRProSalesOrder.SetItemFC1PriceWTax(Index: Integer; const Value: Double);
+procedure TRProSalesOrder.SetItemFC1PriceWTax(Index: Integer; const Value: Double);
 begin
   raise EPro8Exception.Create('set item forreign currency price w/ tax - not implemented (' + TableName + ')');
 end;
 
-procedure TrdiRProSalesOrder.SetItemSID(Index: Integer; const Value: Int64);
+procedure TRProSalesOrder.SetItemSID(Index: Integer; const Value: Int64);
 begin
   raise EPro8Exception.Create('set item SID - not implemented (' + TableName + ')');
 end;
 
-procedure TrdiRProSalesOrder.SetItemSIDStr(Index: Integer; const Value: string);
+procedure TRProSalesOrder.SetItemSIDStr(Index: Integer; const Value: string);
 begin
   raise EPro8Exception.Create('set item SIDStr - not implemented (' + TableName + ')');
 end;
 
-procedure TrdiRProSalesOrder.SetItemLookup(Index: Integer; const Value: string);
+procedure TRProSalesOrder.SetItemLookup(Index: Integer; const Value: string);
 begin
   CheckWriteItemPosition(Index);
   FNestedDoc.SetString(Value, fidItemLookup);
 end;
 
-procedure TrdiRProSalesOrder.SetItemNum(Index: Integer; const Value: Integer);
+procedure TRProSalesOrder.SetItemNum(Index: Integer; const Value: Integer);
 begin
   CheckWriteItemPosition(Index);
   SetItemLookup(Index, IntToStr(Value));
 end;
 
-procedure TrdiRProSalesOrder.SetItemPkgItemNo(Index: Integer;
+procedure TRProSalesOrder.SetItemPkgItemNo(Index: Integer;
   const Value: Integer);
 begin
   CheckWriteItemPosition(Index);
   FNestedDoc.SetInteger(Index, fidDocItmPkgItmNo);
 end;
 
-procedure TrdiRProSalesOrder.SetItemPrice(Index: Integer; const Value: Double);
+procedure TRProSalesOrder.SetItemPrice(Index: Integer; const Value: Double);
 begin
   CheckWriteItemPosition(Index);
   FNestedDoc.SetDouble(Value, fidDocItmPrc);
 end;
 
-procedure TrdiRProSalesOrder.SetItemPriceLevel(Index: Integer; const Value: string);
+procedure TRProSalesOrder.SetItemPriceLevel(Index: Integer; const Value: string);
 begin
   CheckWriteItemPosition(Index);
   SetRProLookupItem(FNestedDoc, fidPrcLvl, Value, LookupLengthMatch);
 end;
 
-procedure TrdiRProSalesOrder.SetItemQty(Index: Integer; const Value: Double);
+procedure TRProSalesOrder.SetItemQty(Index: Integer; const Value: Double);
 begin
   CheckWriteItemPosition(Index);
   FNestedDoc.SetDouble(value, fidQTY);
 end;
 
-procedure TrdiRProSalesOrder.SetItemSize(Index: Integer; const Value: string);
+procedure TRProSalesOrder.SetItemSize(Index: Integer; const Value: string);
 begin
   CheckWriteItemPosition(Index);
   FNestedDoc.SetString(value, fidSIZE);
 end;
 
-procedure TrdiRProSalesOrder.SetItemSOPrice(Index: Integer;
+procedure TRProSalesOrder.SetItemSOPrice(Index: Integer;
   const Value: Double);
 begin
   CheckWriteItemPosition(Index);
   FNestedDoc.SetDouble(value, fidDocItmPrc);
 end;
 
-procedure TrdiRProSalesOrder.SetItemSPIF(Index: Integer; const Value: Double);
+procedure TRProSalesOrder.SetItemSPIF(Index: Integer; const Value: Double);
 begin
   raise EPro8Exception.Create('set item SPIF - not implemented' + TableName + ')');
 end;
 
-procedure TrdiRProSalesOrder.SetItemTaxAmount(Index: Integer; const Value: Double);
+procedure TRProSalesOrder.SetItemTaxAmount(Index: Integer; const Value: Double);
 begin
   { The only way to set tax at the item level is to use the "detax" fields. But my advice: Don''t use the detax fields!
     You''ll run in circles chasing one problem after another!  If you REALLY think you need to do this,
@@ -1980,13 +1902,13 @@ begin
   raise Exception.Create('Item-level tax not supported!  Read the source code comments.');
 end;
 
-procedure TrdiRProSalesOrder.SetItemTaxCode(Index: Integer; const Value: string);
+procedure TRProSalesOrder.SetItemTaxCode(Index: Integer; const Value: string);
 begin
   CheckWriteItemPosition(Index);
   SetRProLookupItem(FNestedDoc, fidTax, Value, LookupLengthMatch);
 end;
 
-procedure TrdiRProSalesOrder.SetItemTaxPercent(Index: Integer; const Value: Double);
+procedure TRProSalesOrder.SetItemTaxPercent(Index: Integer; const Value: Double);
 begin
   { The only way to set tax at the item level is to use the "detax" fields. But my advice: Don''t use the detax fields!
     You''ll run in circles chasing one problem after another!  If you REALLY think you need to do this,
@@ -1995,1001 +1917,536 @@ begin
   raise Exception.Create('Item-level tax not supported!  Read the source code comments.');
 end;
 
-procedure TrdiRProSalesOrder.SetItemUDF1(Index: Integer; const Value: string);
+procedure TRProSalesOrder.SetItemUDF1(Index: Integer; const Value: string);
 begin
   CheckWriteItemPosition(Index);
   SetRProLookupItem(FNestedDoc, fidUsrCd0, Value, LookupLengthMatch);
 end;
 
-procedure TrdiRProSalesOrder.SetItemUDF2(Index: Integer; const Value: string);
+procedure TRProSalesOrder.SetItemUDF2(Index: Integer; const Value: string);
 begin
   CheckWriteItemPosition(Index);
   SetRProLookupItem(FNestedDoc, fidUsrCd1, Value, LookupLengthMatch);
 end;
 
-procedure TrdiRProSalesOrder.SetItemUDF3(Index: Integer; const Value: string);
+procedure TRProSalesOrder.SetItemUDF3(Index: Integer; const Value: string);
 begin
   CheckWriteItemPosition(Index);
   SetRProLookupItem(FNestedDoc, fidUsrCd2, Value, LookupLengthMatch);
 end;
 
-procedure TrdiRProSalesOrder.SetItemUDF4(Index: Integer; const Value: string);
+procedure TRProSalesOrder.SetItemUDF4(Index: Integer; const Value: string);
 begin
   CheckWriteItemPosition(Index);
   SetRProLookupItem(FNestedDoc, fidUsrCd3, Value, LookupLengthMatch);
 end;
 
-procedure TrdiRProSalesOrder.SetItemUPC(Index: Integer; const Value: string);
+procedure TRProSalesOrder.SetItemUPC(Index: Integer; const Value: string);
 begin
   CheckWriteItemPosition(Index);
   FNestedDoc.SetString(value, fidUPC);
 end;
 
-procedure TrdiRProSalesOrder.SetItemVendorCode(Index: Integer; const Value: string);
+procedure TRProSalesOrder.SetItemVendorCode(Index: Integer; const Value: string);
 begin
   CheckWriteItemPosition(Index);
   FNestedDoc.SetString(value, fidVC);
 end;
 
-procedure TrdiRProSalesOrder.SetLastModified(const Value: TDatetime);
+procedure TRProSalesOrder.SetLastModified(const Value: TDatetime);
 begin
   FLastModified := Value;
   FRProTable.Document.SetDateTime(FLastModified, fidDocLastEdit);
 end;
 
-procedure TrdiRProSalesOrder.SetSerialNum(Index: Integer; const Value: string);
+procedure TRProSalesOrder.SetSerialNum(Index: Integer; const Value: string);
 begin
   raise EPro8Exception.Create('set serial number - not implemented' + TableName + ')');
 end;
 
-function TrdiRProSalesOrder.GetFlag1ID: Integer;
+function TRProSalesOrder.GetFlag1ID: Integer;
 begin
   Result := FRProTable.Document.GetInteger(fidFlag1, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetFlag2ID: Integer;
+function TRProSalesOrder.GetFlag2ID: Integer;
 begin
   Result := FRProTable.Document.GetInteger(fidFlag2, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetFlag3ID: Integer;
+function TRProSalesOrder.GetFlag3ID: Integer;
 begin
   Result := FRProTable.Document.GetInteger(fidFlag3, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetItemPriceLevelID(Index: Integer): Integer;
+function TRProSalesOrder.GetItemPriceLevelID(Index: Integer): Integer;
 begin
   Result := FNestedDoc.GetInteger(fidPrcLvl, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetItemUDF1ID(Index: Integer): Integer;
+function TRProSalesOrder.GetItemUDF1ID(Index: Integer): Integer;
 begin
   Result := FNestedDoc.GetInteger(fidUsrCd0, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetItemUDF2ID(Index: Integer): Integer;
+function TRProSalesOrder.GetItemUDF2ID(Index: Integer): Integer;
 begin
   Result := FNestedDoc.GetInteger(fidUsrCd1, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetItemUDF3ID(Index: Integer): Integer;
+function TRProSalesOrder.GetItemUDF3ID(Index: Integer): Integer;
 begin
   Result := FNestedDoc.GetInteger(fidUsrCd2, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetItemUDF4ID(Index: Integer): Integer;
+function TRProSalesOrder.GetItemUDF4ID(Index: Integer): Integer;
 begin
   Result := FNestedDoc.GetInteger(fidUsrCd3, FLastFieldNull);
 end;
 
-procedure TrdiRProSalesOrder.SetFlag1ID(const Value: Integer);
+procedure TRProSalesOrder.SetFlag1ID(const Value: Integer);
 begin
   FNestedDoc.SetInteger(Value, fidFlag1);
 end;
 
-procedure TrdiRProSalesOrder.SetFlag2ID(const Value: Integer);
+procedure TRProSalesOrder.SetFlag2ID(const Value: Integer);
 begin
   FNestedDoc.SetInteger(Value, fidFlag2);
 end;
 
-procedure TrdiRProSalesOrder.SetFlag3ID(const Value: Integer);
+procedure TRProSalesOrder.SetFlag3ID(const Value: Integer);
 begin
   FNestedDoc.SetInteger(Value, fidFlag3);
 end;
 
-procedure TrdiRProSalesOrder.SetItemPriceLevelID(Index: Integer; const Value: Integer);
+procedure TRProSalesOrder.SetHistoryMonthYear(Month, Year: Integer);
+begin
+  // not used in SOs
+end;
+
+procedure TRProSalesOrder.SetItemPriceLevelID(Index: Integer; const Value: Integer);
 begin
   CheckWriteItemPosition(Index);
   FNestedDoc.SetInteger(Value, fidPrcLvl);
 end;
 
-procedure TrdiRProSalesOrder.SetItemPriceWTax(Index: Integer; const Value: Double);
+procedure TRProSalesOrder.SetItemPriceWTax(Index: Integer; const Value: Double);
 begin
   CheckWriteItemPosition(Index);
   FNestedDoc.SetDouble(Value, fidDocItmPWT);
 end;
 
-procedure TrdiRProSalesOrder.SetItemUDF1ID(Index: Integer; const Value: Integer);
+procedure TRProSalesOrder.SetItemUDF1ID(Index: Integer; const Value: Integer);
 begin
   CheckWriteItemPosition(Index);
   FNestedDoc.SetInteger(Value, fidUsrCd0);
 end;
 
-procedure TrdiRProSalesOrder.SetItemUDF2ID(Index: Integer; const Value: Integer);
+procedure TRProSalesOrder.SetItemUDF2ID(Index: Integer; const Value: Integer);
 begin
   CheckWriteItemPosition(Index);
   FNestedDoc.SetInteger(Value, fidUsrCd1);
 end;
 
-procedure TrdiRProSalesOrder.SetItemUDF3ID(Index: Integer; const Value: Integer);
+procedure TRProSalesOrder.SetItemUDF3ID(Index: Integer; const Value: Integer);
 begin
   CheckWriteItemPosition(Index);
   FNestedDoc.SetInteger(Value, fidUsrCd2);
 end;
 
-procedure TrdiRProSalesOrder.SetItemUDF4ID(Index: Integer; const Value: Integer);
+procedure TRProSalesOrder.SetItemUDF4ID(Index: Integer; const Value: Integer);
 begin
   CheckWriteItemPosition(Index);
   FNestedDoc.SetInteger(Value, fidUsrCd3);
 end;
 
-procedure TrdiRProSalesOrder.SetSOTypeID(const Value: Integer);
+procedure TRProSalesOrder.SetSOTypeID(const Value: Integer);
 begin
   FRProTable.Document.SetInteger(Value, fidSOType);
 end;
 
-function TrdiRProSalesOrder.GetSOTypeID: Integer;
+function TRProSalesOrder.GetSOTypeID: Integer;
 begin
   Result := FRProTable.Document.GetInteger(fidSOType, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.CreateNewDeposit(const Cashier: string; const Amount: Double): IRdaDocument;
-{ creates a new deposit upon which can be added one or more tenders }
-begin
-  // prepare the new deposit
-  FDepositsDoc.Count := FDepositsDoc.Count + 1;
-  FDepositsDoc.SetPosition(FDepositsDoc.Count - 1);
-
-  // set basic deposit info
-  FDepositsDoc.SetString(Cashier, fidCashier);
-  FDepositsDoc.SetDouble(Amount, fidAmount);
-
-  // return handle to deposit document, ready for tendering
-  Result := FDepositsDoc;
-end;
-
-procedure TrdiRProSalesOrder.AddDepositWithCash(const Cashier: string; const Amount: Double);
-{ adds a new deposit with one tender on it: cash }
-var
-  ANewDeposit: IRdaDocument;
-begin
-  ClearDepositTenders;
-  ANewDeposit := CreateNewDeposit(Cashier, Amount);
-  AddCashTenderToDeposit(ANewDeposit, Amount);
-  AddDepositToSalesOrder;
-end;
-
-procedure TrdiRProSalesOrder.AddDepositWithCheck(const Cashier: string;  const Amount: Double;
-          const ChkNum, CustName, BankNum, StateCode, DLNum: string; const DOB: TDateTime);
-{ add a new deposit with one tender on it: Check }
-var
-  ANewDeposit: IRdaDocument;
-begin
-  ClearDepositTenders;
-  ANewDeposit := CreateNewDeposit(Cashier, Amount);
-  AddCheckTenderToDeposit(ANewDeposit, Amount, ChkNum, CustName, BankNum, StateCode, DLNum, DOB);
-  AddDepositToSalesOrder;
-end;
-
-procedure TrdiRProSalesOrder.AddDepositWithCOD(const Cashier: string; const Amount: Double);
-{ add a new deposit with one tender on it: COD }
-var
-  ANewDeposit: IRdaDocument;
-begin
-  ClearDepositTenders;
-  ANewDeposit := CreateNewDeposit(Cashier, Amount);
-  AddCODTenderToDeposit(ANewDeposit, Amount);
-  AddDepositToSalesOrder;
-end;
-
-procedure TrdiRProSalesOrder.AddDepositWithCreditCard(const Cashier: string; const Amount: Double;
-    const CCNum: string = ''; const CCType: string = ''; const AuthID: string = '';
-    const ExpMonth: Integer = 0; const ExpYear: Integer = 0);
-{ adds a new deposit with one tender on it: credit card }
-var
-  ANewDeposit: IRdaDocument;
-begin
-  ClearDepositTenders;
-  ANewDeposit := CreateNewDeposit(Cashier, Amount);
-  AddCreditCardTenderToDeposit(ANewDeposit, Amount, CCNum, CCType, AuthID, ExpMonth, ExpYear);
-  AddDepositToSalesOrder;
-end;
-
-procedure TrdiRProSalesOrder.AddDepositWithGiftCard(const Cashier: string; const Amount: Double;
-                    const GiftNum: string = '');
-{ adds a new deposit with one tender on it: gift card }
-var
-  ANewDeposit: IRdaDocument;
-begin
-  ClearDepositTenders;
-  ANewDeposit := CreateNewDeposit(Cashier, Amount);
-  AddGiftCardTenderToDeposit(ANewDeposit, Amount, GiftNum);
-  AddDepositToSalesOrder;
-end;
-
-procedure TrdiRProSalesOrder.AddDepositWithStoreCredit(const Cashier: string; const Amount: Double);
-{ adds a new deposit with one tender on it: store credit }
-var
-  ANewDeposit: IRdaDocument;
-begin
-  ClearDepositTenders;
-  ANewDeposit := CreateNewDeposit(Cashier, Amount);
-  AddStoreCreditTenderToDeposit(ANewDeposit, Amount);
-  AddDepositToSalesOrder;
-end;
-
-procedure TrdiRProSalesOrder.AddDepositWithDeposit(const Cashier: string; var NewRecNum: Integer);
-{ adds a new deposit with one tender on it: deposit }
-var
-  IsNull: WordBool;
-  ANewDeposit: IRdaDocument;
-begin
-  ClearDepositTenders;
-  ANewDeposit := CreateNewDeposit(Cashier, BalanceDue);
-  AddDepositTenderToDeposit(ANewDeposit);
-  AddDepositToSalesOrder;
-
-  NewRecNum := ANewDeposit.GetInteger(fidInvcNum, IsNull);
-end;
-
-procedure TrdiRProSalesOrder.RecordSale(
-  const Cashier: string; var NewRecNum: Integer;
-  ATenderType: TenderType = ttDeposit;
-  CCType: string = '');
-var
-  bkmk: Integer;
-  RecTable: TRPro8Receipt;
-begin
-  RecTable := TRPro8Receipt.Create;
-  RecTable.RProDB := RProDB;
-  RecTable.Open;
-  RecTable.NewRecord;
-
-  RecordSale_HeaderFields(RecTable, Cashier);
-  RecordSale_BillToFields(RecTable);
-  RecordSale_ShipToFields(RecTable);
-  RecordSale_FeesTaxes(RecTable);
-  RecordSale_Items(RecTable);
-  RecordSale_ShippingDiscounts(RecTable);
-
-  // Receipt tenders
-  case ATenderType of
-    ttDeposit:
-      RecTable.TenderWithDeposit(Total);
-    ttCash:
-      RecTable.TenderWithCash(Total);
-    ttFC:
-      raise Exception.Create('Foreign Currency not yet supported for deposits on Sales Orders');
-      //RecTable.TenderWithFC(Total);
-    ttStoreCredit:
-      RecTable.TenderWithStoreCredit(Total);
-    ttCheck:
-      RecTable.TenderWithCheck(Total);
-    ttGiftCard:
-      RecTable.TenderWithGiftCard(Total);
-    ttCreditCard:
-      RecTable.TenderWithCreditCard(Total, EmptyStr, CCType);
-    ttGift:
-      RecTable.TenderWithGift(Total);
-    ttCOD:
-      RecTable.TenderWithCOD(Total);
-  end;
-
-  NewRecNum := RecTable.ReceiptNum;
-
-  // post the receipt record to Retail Pro
-  RecTable.PostRecord;
-  RecTable.Close;
-
-  bkmk := Bookmark;
-  First;
-  Last;
-  Bookmark := bkmk;
-
-  // mark sales order recorded
-  Recorded := True;
-  PostRecord;
-end;
-
-procedure TrdiRProSalesOrder.RecordSaleMultiTender(const Cashier: string;
-  var NewRecNum: Integer; TendAmount1: Currency; TendType1: TenderType;
-  CCType: string; TendAmount2: Currency; TendType2: TenderType);
-var
-  bkmk: Integer;
-  RecTable: TRPro8Receipt;
-begin
-  RecTable := TRPro8Receipt.Create;
-  RecTable.RProDB := RProDB;
-  RecTable.Open;
-  RecTable.NewRecord;
-
-  RecordSale_HeaderFields(RecTable, Cashier);
-  RecordSale_BillToFields(RecTable);
-  RecordSale_ShipToFields(RecTable);
-  RecordSale_FeesTaxes(RecTable);
-  RecordSale_Items(RecTable);
-  RecordSale_ShippingDiscounts(RecTable);
-
-  // Receipt tenders
-  {$IFNDEF Delphi5}
-    {$REGION 'Tender 1'}
-  {$ENDIF}
-  case TendType1 of
-    ttDeposit:
-      RecTable.TenderWithDeposit(TendAmount1);
-    ttCash:
-      RecTable.TenderWithCash(TendAmount1);
-    ttFC:
-      raise Exception.Create('Foreign Currency not yet supported for deposits on Sales Orders');
-      //RecTable.TenderWithFC(Total);
-    ttStoreCredit:
-      RecTable.TenderWithStoreCredit(TendAmount1);
-    ttCheck:
-      RecTable.TenderWithCheck(TendAmount1);
-    ttGiftCard:
-      RecTable.TenderWithGiftCard(TendAmount1);
-    ttCreditCard:
-      RecTable.TenderWithCreditCard(TendAmount1, EmptyStr, CCType);
-    ttGift:
-      RecTable.TenderWithGift(TendAmount1);
-    ttCOD:
-      RecTable.TenderWithCOD(TendAmount1);
-  end;
-  {$IFNDEF Delphi5}
-    {$ENDREGION}
-  {$ENDIF}
-  {$IFNDEF Delphi5}
-    {$REGION 'Tender 2'}
-  {$ENDIF}
-  case TendType2 of
-    ttDeposit:
-      RecTable.TenderWithDeposit(TendAmount2);
-    ttCash:
-      RecTable.TenderWithCash(TendAmount2);
-    ttFC:
-      raise Exception.Create('Foreign Currency not yet supported for deposits on Sales Orders');
-      //RecTable.TenderWithFC(Total);
-    ttStoreCredit:
-      RecTable.TenderWithStoreCredit(TendAmount2);
-    ttCheck:
-      RecTable.TenderWithCheck(TendAmount2);
-    ttGiftCard:
-      RecTable.TenderWithGiftCard(TendAmount2);
-    ttCreditCard:
-      RecTable.TenderWithCreditCard(TendAmount2, EmptyStr, EmptyStr);
-    ttGift:
-      RecTable.TenderWithGift(TendAmount2);
-    ttCOD:
-      RecTable.TenderWithCOD(TendAmount2);
-  end;
-  {$IFNDEF Delphi5}
-    {$ENDREGION}
-  {$ENDIF}
-
-  NewRecNum := RecTable.ReceiptNum;
-
-  // post the receipt record to Retail Pro
-  RecTable.PostRecord;
-  RecTable.Close;
-
-  bkmk := Bookmark;
-  First;
-  Last;
-  Bookmark := bkmk;
-
-  // mark sales order recorded
-  Recorded := True;
-  PostRecord;
-end;
-
-procedure TrdiRProSalesOrder.RecordSale_ShippingDiscounts(var RecTable: TRPro8Receipt);
-begin
-  // shipping
-  if ShippingAmount = 0 then
-    RecTable.ShippingPercent := ShippingPercent
-  else
-    RecTable.ShippingAmount := ShippingAmount;
-  // discount
-  if DiscountAmount = 0 then
-    RecTable.DiscountPercent := DiscountPercent
-  else
-    RecTable.DiscountAmount := DiscountAmount;
-end;
-
-procedure TrdiRProSalesOrder.RecordSale_FeesTaxes(var RecTable: TRPro8Receipt);
-begin
-  // set the fee information if it exists
-  RecTable.FeeAmount := Fee;
-  RecTable.FeeType := FeeType;
-  // set tax before items so that items can override
-  // try to set tax area and leave it at that
-  if Length(TaxArea) > 0 then
-    RecTable.TaxArea := TaxArea;
-  // DO NOT SET TAX PERCENT AT HEADER LEVEL!!  Tax area and item-level tax will set it correctly.
-end;
-
-procedure TrdiRProSalesOrder.RecordSale_HeaderFields(var RecTable: TRPro8Receipt; const Cashier: string);
-begin
-  RecTable.SONum := SONum;
-  RecTable.ReceiptDate := Date;
-  RecTable.ReceiptTime := Time;
-  RecTable.ReceiptType := 'Sale';
-  RecTable.Store := SellFrom;
-  RecTable.Cashier := Cashier;
-  RecTable.Associate := Associate;
-end;
-
-procedure TrdiRProSalesOrder.RecordSale_ShipToFields(RecTable: TRPro8Receipt);
-begin
-  // ship-to info
-  if ShipToCustSID > 0 then
-    RecTable.ShipToCustSID := ShipToCustSID
-  else
-  begin
-    RecTable.ShipToCompany := ShipToCompany;
-    RecTable.ShipToFName := ShipToFName;
-    RecTable.ShipToLName := ShipToLName;
-    RecTable.ShipToAddr1 := ShipToAddr1;
-    RecTable.ShipToAddr2 := ShipToAddr2;
-    RecTable.ShipToAddr3 := ShipToAddr3;
-    RecTable.ShipToZip := ShipToZip;
-    RecTable.ShipToEmail := ShipToEmail;
-  end;
-end;
-
-procedure TrdiRProSalesOrder.RecordSale_BillToFields(RecTable: TRPro8Receipt);
-begin
-  // bill-to info
-  if BillToCustSID > 0 then
-    RecTable.BillToCustSID := BillToCustSID
-  else
-  begin
-    RecTable.BillToCompany := BillToCompany;
-    RecTable.BillToFName := BillToFName;
-    RecTable.BillToLName := BillToLName;
-    RecTable.BillToAddr1 := BillToAddr1;
-    RecTable.BillToAddr2 := BillToAddr2;
-    RecTable.BillToAddr3 := BillToAddr3;
-    RecTable.BillToZip := BillToZip;
-    RecTable.BillToEmail := BillToEmail;
-  end;
-end;
-
-procedure TrdiRProSalesOrder.RecordSale_Items(RecTable: TRPro8Receipt);
-var
-  i: Integer;
-begin
-  // get the items into the reciept
-  for i := 0 to ItemCount - 1 do begin
-    // set qty sent of SO to qty ordered
-    ItemQtyShipped[i] := ItemQty[i];
-
-    RecTable.AddItem(ItemNum[i]);
-    RecTable.ItemQty[RecTable.ItemCount - 1] := ItemQty[i];
-    RecTable.ItemPrice[RecTable.ItemCount - 1] := ItemPrice[i];
-    // the item-level tax should set the header-level tax percent but still keep tax-exempt ones clear.
-    RecTable.ItemTaxPercent[RecTable.ItemCount - 1] := ItemTaxPercent[i] * 100.0; // why on earth do I need to do this?
-    RecTable.ItemTaxAmount[RecTable.ItemCount - 1] := ItemTaxAmount[i];
-    // be sure to set the percent first--otherwise the amount gets multiplied by 100!  huh?  go figure
-  end;
-end;
-
-procedure TrdiRProSalesOrder.AddDepositToSalesOrder;
-var
-  SOObject: IRdaSO;
-begin
-  // create the SO object
-  SOObject := FRProTable.CustomInterface as IRdaSO;
-  SOObject.AddDeposit;
-end;
-
-procedure TrdiRProSalesOrder.AddGiftCardTenderToDeposit(ADeposit: IRdaDocument;
-      const Amount: Double; const GiftNum: string = '');
-{ adds a gift card tender as an additional payment with other tenders on one deposit }
-var
-  DepTender: IRdaTender;
-  ATender: OleVariant;
-begin
-  // cast the deposit as a tender in order to add the gift card
-  DepTender := ADeposit.CustomInterface as IRdaTender;
-  // create the new tender for the deposit
-  ATender := DepTender.AddItem(ttGiftCard);
-  ATender.Amount := Amount;
-  ATender.CardNumber := GiftNum;
-end;
-
-procedure TrdiRProSalesOrder.AddCheckTenderToDeposit(ADeposit: IRdaDocument;
-  const Amount: Double; const ChkNum, CustName, BankNum, StateCode, DLNum: string; const DOB: TDateTime);
-{ adds a Check tender as an addisional payment with other tenders on one deposit }
-var
-  DepTender: IRdaTender;
-  NewTender: OleVariant;
-begin
-  // cast the deposit as a tender in order to add the credit card
-  DepTender := ADeposit.CustomInterface as IRdaTender;
-  // create the new tender for the deposit
-  NewTender := DepTender.AddItem(ttCheck);
-  NewTender.Amount := Amount;
-  NewTender.CheckNumber := ChkNum;
-  NewTender.CustomerName := CustName;
-  NewTender.BankNumber := BankNum;
-  NewTender.StateCode := StateCode;
-  NewTender.DriverLicenseNumber := DLNum;
-  NewTender.DateOfBirth := DOB;
-  NewTender.Amount := Amount;
-end;
-
-procedure TrdiRProSalesOrder.AddCODTenderToDeposit(ADeposit: IRdaDocument; const Amount: Double);
-{ adds a COD tender as an addisional payment with other tenders on one deposit }
-var
-  DepTender: IRdaTender;
-  NewTender: OleVariant;
-begin
-  // cast the deposit as a tender in order to use it
-  DepTender := ADeposit.CustomInterface as IRdaTender;
-  // create the new tender for the deposit
-  NewTender := DepTender.AddItem(ttCOD);
-  NewTender.Amount := Amount;
-end;
-
-procedure TrdiRProSalesOrder.AddCreditCardTenderToDeposit(ADeposit: IRdaDocument;
-    const Amount: Double;
-    const CCNum: string = ''; const CCType: string = ''; const AuthID: string = '';
-    const ExpMonth: Integer = 0; const ExpYear: Integer = 0);
-{ adds a credit card tender as an additional payment with other tenders on one deposit }
-var
-  DepTender: IRdaTender;
-  NewTender: OleVariant;
-begin
-  // cast the deposit as a tender in order to add the credit card
-  DepTender := ADeposit.CustomInterface as IRdaTender;
-  // create the new tender for the deposit
-  NewTender := DepTender.AddItem(ttCreditCard);
-  NewTender.Amount := Amount;
-  NewTender.CardNumber := CCNum;
-  NewTender.ExpMonth := ExpMonth;
-  NewTender.ExpYear := ExpYear;
-  NewTender.AuthorizationNum := AuthID;
-
-  if Length(CCType) > 0 then
-    NewTender.CardType := CCType
-  else if Length(CCNum) > 0 then
-    NewTender.CardType := GetCCTypeFromNumber(CCNum);
-end;
-
-procedure TrdiRProSalesOrder.AddDepositTenderToDeposit(ADeposit: IRdaDocument);
-{ adds a deposit tender as an additional payment with other tenders on one deposit }
-var
-  DepTender: IRdaTender;
-  NewTender: OleVariant;
-begin
-  // cast the deposit as a tender in order to use it
-  DepTender := ADeposit.CustomInterface as IRdaTender;
-  // create the new tender for the deposit
-  NewTender := DepTender.AddItem(ttDeposit);
-  NewTender.Amount := BalanceDue;
-end;
-
-procedure TrdiRProSalesOrder.AddCashTenderToDeposit(ADeposit: IRdaDocument; const Amount: Double);
-{ adds a cash tender as an additional payment with other tenders on one deposit }
-var
-  NewTender: OleVariant;
-  DepTender: IRdaTender;
-begin
-  // cast the deposit as a tender in order to use it
-  DepTender := ADeposit.CustomInterface as IRdaTender;
-  // create the new tender for the deposit
-  NewTender := DepTender.AddItem(ttCash);
-  NewTender.Amount := Amount;
-end;
-
-procedure TrdiRProSalesOrder.AddStoreCreditTenderToDeposit(ADeposit: IRdaDocument; const Amount: Double);
-{ adds a store credit tender as an additional payment with other tenders on one deposit }
-var
-  NewTender: OleVariant;
-  DepTender: IRdaTender;
-begin
-  // cast the deposit as a tender in order to use it
-  DepTender := ADeposit.CustomInterface as IRdaTender;
-  // create the new tender for the deposit
-  NewTender := DepTender.AddItem(ttStoreCredit);
-  NewTender.Amount := Amount;
-end;
-
-function TrdiRProSalesOrder.GetTotal: Double;
+function TRProSalesOrder.GetTotal: Double;
 begin
  Result := FRProTable.Document.GetDouble(fidTotal, FLastFieldNull);
 end;
 
-procedure TrdiRProSalesOrder.SetTotal(const Value: Double);
+procedure TRProSalesOrder.SetTotal(const Value: Double);
 begin
   FRProTable.Document.SetDouble(Value, fidTotal);
 end;
 
-function TrdiRProSalesOrder.GetFee: Double;
+function TRProSalesOrder.GetFee: Double;
 begin
   Result := FRProTable.Document.GetDouble(fidFee, FLastFieldNull);
 end;
 
-procedure TrdiRProSalesOrder.SetFee(const Value: Double);
+procedure TRProSalesOrder.SetFee(const Value: Double);
 begin
   FRProTable.Document.SetDouble(Value, fidFeeEdt);
 end;
 
-function TrdiRProSalesOrder.GetFeeType: string;
+function TRProSalesOrder.GetFeeType: string;
 begin
   Result := FRProTable.Document.GetString(fidFeeType, FLastFieldNull);
 end;
 
-procedure TrdiRProSalesOrder.SetFeeType(const Value: string);
+procedure TRProSalesOrder.SetFeeType(const Value: string);
 begin
   FRProTable.Document.SetString(Value, fidFeeType);
 end;
 
-function TrdiRProSalesOrder.GetTaxPercent: Double;
+function TRProSalesOrder.GetTaxPercent: Double;
 begin
   Result := FRProTable.Document.GetDouble(fidTaxP, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetTerms: string;
+function TRProSalesOrder.GetTerms: string;
 begin
   Result := GetRProLookupItem(FRProTable.Document, fidHowPaid, FLastFieldNull);
 end;
 
-procedure TrdiRProSalesOrder.SetTaxArea(const Value: string);
+procedure TRProSalesOrder.SetTaxArea(const Value: string);
 begin
   FRProTable.Document.SetString(Value, fidTaxArea);
 end;
 
-procedure TrdiRProSalesOrder.SetTaxPercent(const Value: Double);
+procedure TRProSalesOrder.SetTaxPercent(const Value: Double);
 begin
   FRProTable.Document.SetDouble(Value, fidTaxP);
 end;
 
-procedure TrdiRProSalesOrder.SetTerms(const Value: string);
+procedure TRProSalesOrder.SetTerms(const Value: string);
 begin
   SetRProLookupItem(FRProTable.Document, fidHowPaid, Value, LookupLengthMatch);
 end;
 
-function TrdiRProSalesOrder.GetShippingPercent: Double;
+function TRProSalesOrder.GetShippingPercent: Double;
 begin
   Result := FRProTable.Document.GetDouble(fidShippingPercent, FLastFieldNull);
 end;
 
-procedure TrdiRProSalesOrder.SetShippingPercent(const Value: Double);
+procedure TRProSalesOrder.SetShippingPercent(const Value: Double);
 begin
   FRProTable.Document.SetDouble(Value, fidShippingPercent);
 end;
 
-function TrdiRProSalesOrder.GetShippingAmount: Double;
+function TRProSalesOrder.GetShippingAmount: Double;
 begin
   Result := FRProTable.Document.GetDouble(fidShipping, FLastFieldNull);
 end;
 
-procedure TrdiRProSalesOrder.SetShippingAmount(const Value: Double);
+procedure TRProSalesOrder.SetShippingAmount(const Value: Double);
 begin
   FRProTable.Document.SetDouble(Value, fidShippingEdt);
 end;
 
-function TrdiRProSalesOrder.GetDiscountAmount: Double;
+function TRProSalesOrder.GetDiscountAmount: Double;
 begin
   Result := FRProTable.Document.GetDouble(fidDisc, FLastFieldNull);
 end;
 
-procedure TrdiRProSalesOrder.SetDiscountAmount(const Value: Double);
+procedure TRProSalesOrder.SetDiscountAmount(const Value: Double);
 begin
   FRProTable.Document.SetDouble(Value, fidDisc);
 end;
 
-function TrdiRProSalesOrder.GetDiscountPercent: Double;
+function TRProSalesOrder.GetDiscountPercent: Double;
 begin
   Result := FRProTable.Document.GetDouble(fidDiscPercent, FLastFieldNull);
 end;
 
-procedure TrdiRProSalesOrder.SetDiscountPercent(const Value: Double);
+procedure TRProSalesOrder.SetDiscountPercent(const Value: Double);
 begin
   FRProTable.Document.SetDouble(Value, fidDiscPercent);
 end;
 
-function TrdiRProSalesOrder.GetRecorded: Boolean;
+function TRProSalesOrder.GetRecorded: Boolean;
 begin
   Result := FRProTable.Document.GetBoolean(fidSORecorded, FLastFieldNull);
 end;
 
-procedure TrdiRProSalesOrder.SetRecorded(const Value: Boolean);
+procedure TRProSalesOrder.SetRecorded(const Value: Boolean);
 begin
   FRProTable.Document.SetBoolean(Value, fidSORecorded);
 end;
 
-function TrdiRProSalesOrder.GetDefaultIndexID: Integer;
+function TRProSalesOrder.GetDefaultIndexID: Integer;
 begin
-{$IFDEF Delphi5}
-  Result := 1;
-{$ELSE}
   Result := Index_Default;
-{$ENDIF}
 end;
 
-function TrdiRProSalesOrder.GetDepositBalance: Double;
+function TRProSalesOrder.GetDepositBalance: Double;
 begin
   Result := FRProTable.Document.GetDouble(fidSODepoBalance, FLastFieldNull);
 end;
 
-procedure TrdiRProSalesOrder.SetDepositBalance(const Value: Double);
+procedure TRProSalesOrder.SetDepositBalance(const Value: Double);
 begin
   FRProTable.Document.SetDouble(Value, fidSODepoBalance);
 end;
 
-procedure TrdiRProSalesOrder.SetCancelDate(const Value: TDateTime);
+procedure TRProSalesOrder.SetCancelDate(const Value: TDateTime);
 begin
   FRProTable.Document.SetDateTime(Value, fidSOCancelDate);
 end;
 
-procedure TrdiRProSalesOrder.SetComment(const Value: string);
+procedure TRProSalesOrder.SetComment(const Value: string);
 begin
   FRProTable.Document.SetString(Value, fidSOComment);
 end;
 
-procedure TrdiRProSalesOrder.SetOrderedDate(const Value: TDateTime);
+procedure TRProSalesOrder.SetOrderedDate(const Value: TDateTime);
 begin
   FRProTable.Document.SetDateTime(Value, fidSOOrderedDate);
 end;
 
-procedure TrdiRProSalesOrder.SetPaymentDueDate(const Value: TDateTime);
+procedure TRProSalesOrder.SetPaymentDueDate(const Value: TDateTime);
 begin
   FRProTable.Document.SetDateTime(Value, fidSOPmtDueDate);
 end;
 
-procedure TrdiRProSalesOrder.SetShippedDate(const Value: TDateTime);
+procedure TRProSalesOrder.SetShippedDate(const Value: TDateTime);
 begin
   FRProTable.Document.SetDateTime(Value, fidSOShippedDate);
 end;
 
-procedure TrdiRProSalesOrder.SetTotalDueDate(const Value: TDateTime);
+procedure TRProSalesOrder.SetTotalDueDate(const Value: TDateTime);
 begin
   FRProTable.Document.SetDateTime(Value, fidSOTotDueDate);
 end;
 
-function TrdiRProSalesOrder.GetShipMethod: string;
+function TRProSalesOrder.GetShipMethod: string;
 begin
   Result := FRProTable.Document.GetString(fidShipMethod, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetShipPartial: Boolean;
+function TRProSalesOrder.GetShipPartial: Boolean;
 begin
   Result := FRProTable.Document.GetBoolean(fidSOShipPartial, FLastFieldNull);
 end;
 
-procedure TrdiRProSalesOrder.SetShipMethod(const Value: string);
+procedure TRProSalesOrder.SetShipMethod(const Value: string);
 begin
   FRProTable.Document.SetString(Value, fidShipMethod);
 end;
 
-procedure TrdiRProSalesOrder.SetShipPartial(const Value: Boolean);
+procedure TRProSalesOrder.SetShipPartial(const Value: Boolean);
 begin
   FRProTable.Document.SetBoolean(Value, fidSOShipPartial);
 end;
 
-function TrdiRProSalesOrder.GetSubTotal: Double;
+function TRProSalesOrder.GetSubTotal: Double;
 begin
   Result := FRProTable.Document.GetDouble(fidSubTotal, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetTaxAmount: Double;
+function TRProSalesOrder.GetTaxAmount: Double;
 begin
   Result := FRProTable.Document.GetDouble(fidTaxAmt, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetTaxArea: string;
+function TRProSalesOrder.GetTaxArea: string;
 begin
   Result := FRProTable.Document.GetString(fidTaxArea, FLastFieldNull);
 end;
 
-procedure TrdiRProSalesOrder.SetSubTotal(const Value: Double);
+procedure TRProSalesOrder.SetSubTotal(const Value: Double);
 begin
   FRProTable.Document.SetDouble(Value, fidSubTotal);
 end;
 
-function TrdiRProSalesOrder.GetInstruction1: string;
+function TRProSalesOrder.GetInstruction1: string;
 begin
   Result := FRProTable.Document.GetString(fidSOInstruction1, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetInstruction2: string;
+function TRProSalesOrder.GetInstruction2: string;
 begin
   Result := FRProTable.Document.GetString(fidSOInstruction2, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetInstruction3: string;
+function TRProSalesOrder.GetInstruction3: string;
 begin
   Result := FRProTable.Document.GetString(fidSOInstruction3, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetInstruction4: string;
+function TRProSalesOrder.GetInstruction4: string;
 begin
   Result := FRProTable.Document.GetString(fidSOInstruction4, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetInstruction5: string;
+function TRProSalesOrder.GetInstruction5: string;
 begin
   Result := FRProTable.Document.GetString(fidSOInstruction5, FLastFieldNull);
 end;
 
-procedure TrdiRProSalesOrder.SetInstruction1(const Value: string);
+procedure TRProSalesOrder.SetInstruction1(const Value: string);
 begin
   FRProTable.Document.SetString(Value, fidSOInstruction1);
 end;
 
-procedure TrdiRProSalesOrder.SetInstruction2(const Value: string);
+procedure TRProSalesOrder.SetInstruction2(const Value: string);
 begin
   FRProTable.Document.SetString(Value, fidSOInstruction2);
 end;
 
-procedure TrdiRProSalesOrder.SetInstruction3(const Value: string);
+procedure TRProSalesOrder.SetInstruction3(const Value: string);
 begin
   FRProTable.Document.SetString(Value, fidSOInstruction3);
 end;
 
-procedure TrdiRProSalesOrder.SetInstruction4(const Value: string);
+procedure TRProSalesOrder.SetInstruction4(const Value: string);
 begin
   FRProTable.Document.SetString(Value, fidSOInstruction4);
 end;
 
-procedure TrdiRProSalesOrder.SetInstruction5(const Value: string);
+procedure TRProSalesOrder.SetInstruction5(const Value: string);
 begin
   FRProTable.Document.SetString(Value, fidSOInstruction5);
 end;
 
-function TrdiRProSalesOrder.GetItemUDFDate(Index: Integer): TDateTime;
+function TRProSalesOrder.GetItemUDFDate(Index: Integer): TDateTime;
 begin
   CheckReadItemPosition(Index);
   Result := FNestedDoc.GetDateTime(fidInvnUDFDate, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetItemUDFName(Index: Integer): string;
+function TRProSalesOrder.GetItemUDFName(Index: Integer): string;
 begin
   CheckReadItemPosition(Index);
   Result := FNestedDoc.GetString(fidInvnUDFStr, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetItemQtyDue(Index: Integer): Double;
+function TRProSalesOrder.GetItemQtyDue(Index: Integer): Double;
 begin
   CheckReadItemPosition(Index);
   Result := FNestedDoc.GetDouble(fidSOItmDue, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetItemQtyShipped(Index: Integer): Double;
+function TRProSalesOrder.GetItemQtyShipped(Index: Integer): Double;
 begin
   CheckReadItemPosition(Index);
   Result := FNestedDoc.GetDouble(fidSOItmSent, FLastFieldNull);
 end;
 
-procedure TrdiRProSalesOrder.SetItemUDFDate(Index: Integer; const Value: TDateTime);
+procedure TRProSalesOrder.SetItemUDFDate(Index: Integer; const Value: TDateTime);
 begin
   CheckWriteItemPosition(Index);
   FNestedDoc.SetDateTime(Value, fidInvnUDFDate);
 end;
 
-procedure TrdiRProSalesOrder.SetItemUDFName(Index: Integer; const Value: string);
+procedure TRProSalesOrder.SetItemUDFName(Index: Integer; const Value: string);
 begin
   CheckWriteItemPosition(Index);
   FNestedDoc.SetString(Value, fidInvnUDFStr);
 end;
 
-procedure TrdiRProSalesOrder.SetItemQtyDue(Index: Integer; const Value: Double);
+procedure TRProSalesOrder.SetItemQtyDue(Index: Integer; const Value: Double);
 begin
   CheckWriteItemPosition(Index);
   FNestedDoc.SetDouble(Value, fidSOItmDue);
 end;
 
-procedure TrdiRProSalesOrder.SetItemQtyShipped(Index: Integer; const Value: Double);
+procedure TRProSalesOrder.SetItemQtyShipped(Index: Integer; const Value: Double);
 begin
   CheckWriteItemPosition(Index);
   FNestedDoc.SetDouble(Value, fidSOItmSent);
 end;
 
-function TrdiRProSalesOrder.GetSellFrom: string;
+function TRProSalesOrder.GetSellFrom: string;
 begin
   Result := FRProTable.Document.GetString(fidSOShipFromStore, FLastFieldNull);
 end;
 
-procedure TrdiRProSalesOrder.SetSellFrom(const Value: string);
+procedure TRProSalesOrder.SetSellFrom(const Value: string);
 begin
   FRProTable.Document.SetString(Value, fidSOShipFromStore);
 end;
 
-function TrdiRProSalesOrder.GetNote: string;
+function TRProSalesOrder.GetNote: string;
 begin
   Result := FRProTable.Document.GetString(fidSONote, FLastFieldNull);
 end;
 
-procedure TrdiRProSalesOrder.SetNote(const Value: string);
+procedure TRProSalesOrder.SetNote(const Value: string);
 begin
   FRProTable.Document.SetString(Value, fidSONote);
 end;
 
-function TrdiRProSalesOrder.GetQtyDue: Double;
+function TRProSalesOrder.GetQtyDue: Double;
 begin
   Result := FRProTable.Document.GetDouble(fidSOItmDue, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetQtySent: Double;
+function TRProSalesOrder.GetQtySent: Double;
 begin
   Result := FRProTable.Document.GetDouble(fidSOItmSent, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetQuantity: Double;
+function TRProSalesOrder.GetQuantity: Double;
 begin
   Result := FRProTable.Document.GetDouble(fidQTY, FLastFieldNull);
 end;
 
-procedure TrdiRProSalesOrder.SetQuantity(const Value: Double);
+procedure TRProSalesOrder.SetQuantity(const Value: Double);
 begin
   FRProTable.Document.SetDouble(Value, fidQTY);
 end;
 
-function TrdiRProSalesOrder.GetPriceLevel: string;
+function TRProSalesOrder.GetPriceLevel: string;
 begin
   Result := GetRProLookupItem(FRProTable.Document, fidPrcLvl, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetPriority: string;
+function TRProSalesOrder.GetPriority: string;
 begin
   Result := GetRProLookupItem(FRProTable.Document, fidSOPriority, FLastFieldNull);
 end;
 
-function TrdiRProSalesOrder.GetProcessAt: string;
+function TRProSalesOrder.GetProcessAt: string;
 begin
   Result := FRProTable.Document.GetString(fidSOTargetStore, FLastFieldNull);
 end;
 
-procedure TrdiRProSalesOrder.SetPriceLevel(const Value: string);
+procedure TRProSalesOrder.SetPriceLevel(const Value: string);
 begin
   SetRProLookupItem(FRProTable.Document, fidPrcLvl, Value, LookupLengthMatch);
 end;
 
-procedure TrdiRProSalesOrder.SetPriority(const Value: string);
+procedure TRProSalesOrder.SetPriority(const Value: string);
 begin
   SetRProLookupItem(FRProTable.Document, fidSOPriority, Value, LookupLengthMatch);
 end;
 
-procedure TrdiRProSalesOrder.SetProcessAt(const Value: string);
+procedure TRProSalesOrder.SetProcessAt(const Value: string);
 begin
   FRProTable.Document.SetString(Value, fidSOTargetStore);
 end;
 
-function TrdiRProSalesOrder.GetItemInvenPrice(Index: Integer): Double;
+function TRProSalesOrder.GetItemInvenPrice(Index: Integer): Double;
 begin
   CheckReadItemPosition(Index);
   Result := FNestedDoc.GetDouble(fidInvnPrc, FLastFieldNull);
 end;
 
-procedure TrdiRProSalesOrder.SetItemInvenPrice(Index: Integer;
-  const Value: Double);
+procedure TRProSalesOrder.SetItemInvenPrice(Index: Integer;  const Value: Double);
 begin
   CheckWriteItemPosition(Index);
   FNestedDoc.SetDouble(Value, fidInvnPrc);
 end;
 
-procedure TrdiRProSalesOrder.SetItemKitComponent(Index: Integer;
-  const Value: string);
+procedure TRProSalesOrder.SetItemKitComponent(Index: Integer;  const Value: string);
 begin
   CheckWriteItemPosition(Index);
   FNestedDoc.SetString(Value, fidKitComponent);
 end;
 
-procedure TrdiRProSalesOrder.SetItemKitFlag(Index: Integer;
-  const Value: string);
+procedure TRProSalesOrder.SetItemKitFlag(Index: Integer; const Value: string);
 begin
   CheckWriteItemPosition(Index);
   SetRProLookupItem(FNestedDoc, fidDocItmKitFlg, Value, LookupLengthMatch);
