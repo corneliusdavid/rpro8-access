@@ -58,6 +58,8 @@ type
     function  GetSIDFromKey(Key: string): Int64;
     procedure GetClerks(var ClerkList: TStringList); overload;
     function GetClerks: TList<string>; overload;
+    function GetPrefsXML: string;
+    function GetUserIDMod1000: string;
     procedure ReadDiscountCodes(var DiscountList: TStringList);
     property  RdaDB: IRdaDB read GeTRPro8DB;
 
@@ -222,6 +224,14 @@ procedure TRPro8DB.DoBeforeDisconnect;
 begin
   if Assigned(FOnBeforeDisconnect) then
     FOnBeforeDisconnect(Self);
+end;
+
+function TRPro8DB.GetPrefsXML: string;
+var
+  Node: IXMLDOMNode;
+begin
+  Node := RdaDB.Preferences.documentElement;
+  Result := Node.xml;
 end;
 
 {$I+}
@@ -455,6 +465,24 @@ begin
     end;
   end;
 
+end;
+
+function TRPro8DB.GetUserIDMod1000: string;
+var
+  LRProTable: IRdaTable;
+  LRProDoc: IRdaDocument;
+  NewSID: Int64;
+  IsNull: WordBool;
+begin
+  LRProTable := RdaDB.CreateTableByID(tblCustomers);
+  LRProTable.Open;
+  LRProDoc := LRProTable.Document;
+  LRProTable.NewRecord;
+  NewSID := LRProDoc.GetInt64(fidCustSID, IsNull);
+
+  // all SIDs are made with the RPro Licensed UserID;
+  // this will be equivalent to UserID mod 1000
+  Result := IntToStr(((NewSID and $FFFF00) shr 8) mod 1000);
 end;
 
 function TRPro8DB.GetPassword: string;
