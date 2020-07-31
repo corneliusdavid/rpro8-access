@@ -1,0 +1,48 @@
+package RPro8Access;
+
+{$R *.res}
+{$IFDEF IMPLICITBUILDING This IFDEF should not be used by users}
+{$ALIGN 8}
+{$ASSERTIONS ON}
+{$BOOLEVAL OFF}
+{$DEBUGINFO OFF}
+{$EXTENDEDSYNTAX ON}
+{$IMPORTEDDATA ON}
+{$IOCHECKS ON}
+{$LOCALSYMBOLS OFF}
+{$LONGSTRINGS ON}
+{$OPENSTRINGS ON}
+{$OPTIMIZATION ON}
+{$OVERFLOWCHECKS OFF}
+{$RANGECHECKS OFF}
+{$REFERENCEINFO OFF}
+{$SAFEDIVIDE OFF}
+{$STACKFRAMES OFF}
+{$TYPEDADDRESS OFF}
+{$VARSTRINGCHECKS ON}
+{$WRITEABLECONST OFF}
+{$MINENUMSIZE 1}
+{$IMAGEBASE $400000}
+{$DEFINE RELEASE}
+{$ENDIF IMPLICITBUILDING}
+{$DESCRIPTION 'RPro8 data access units'}
+{$LIBSUFFIX '_D104Sydney'}
+{$RUNONLY}
+{$IMPLICITBUILD OFF}
+
+requires
+  rtl,
+  vcl;
+
+contains
+  uXmlDates in '..\..\src\uXmlDates.pas',
+  uRProCommon in '..\..\src\uRProCommon.pas',
+  uRProEnumLookup in '..\..\src\uRProEnumLookup.pas',
+  uRPro8DB in '..\..\src\uRPro8DB.pas',
+  uRPro8Table in '..\..\src\uRPro8Table.pas',
+  uRPro8Customer in '..\..\src\uRPro8Customer.pas',
+  uRPro8Inventory in '..\..\src\uRPro8Inventory.pas',
+  uRPro8Receipt in '..\..\src\uRPro8Receipt.pas',
+  uRPro8Salesorder in '..\..\src\uRPro8Salesorder.pas';
+
+end.
