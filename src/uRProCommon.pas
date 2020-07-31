@@ -36,7 +36,7 @@ implementation
 
 uses
   {$IFDEF UseCodeSite} CodeSiteLogging, {$ENDIF}
-  SysUtils;
+  System.SysUtils;
 
 function RPro8WorkStationNumFromEnvVar: string;
 {
