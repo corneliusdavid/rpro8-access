@@ -471,7 +471,7 @@ function TRPro8DB.GetUserIDMod1000: string;
 var
   LRProTable: IRdaTable;
   LRProDoc: IRdaDocument;
-  NewSID: Int64;
+  NewSID: UInt64;
   IsNull: WordBool;
 begin
   LRProTable := RdaDB.CreateTableByID(tblCustomers);
