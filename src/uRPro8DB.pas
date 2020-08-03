@@ -482,7 +482,7 @@ begin
 
   // all SIDs are made with the RPro Licensed UserID;
   // this will be equivalent to UserID mod 1000
-  Result := IntToStr(((NewSID and $FFFF00) shr 8) mod 1000);
+  Result := IntToStr(((NewSID and $FFFF00) shr 8) mod $1000);
 end;
 
 function TRPro8DB.GetPassword: string;
