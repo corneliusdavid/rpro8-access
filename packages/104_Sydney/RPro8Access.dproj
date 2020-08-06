@@ -84,7 +84,6 @@
         <DCC_DebugInformation>0</DCC_DebugInformation>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_2_Win32)'!=''">
-        <VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
         <DCC_UNSUPPORTED_CONSTRUCT>false</DCC_UNSUPPORTED_CONSTRUCT>
         <DllSuffix>_D104Sydney</DllSuffix>
     </PropertyGroup>
@@ -103,6 +102,7 @@
         <DCCReference Include="..\..\src\uRPro8Inventory.pas"/>
         <DCCReference Include="..\..\src\uRPro8Receipt.pas"/>
         <DCCReference Include="..\..\src\uRPro8Salesorder.pas"/>
+        <DCCReference Include="..\..\src\uRPro8Vendor.pas"/>
         <None Include="..\..\src\VersionDefs.inc"/>
         <BuildConfiguration Include="Release">
             <Key>Cfg_2</Key>
@@ -135,7 +135,7 @@
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>
-                <DeployFile LocalName="C:\Users\dev\Documents\Delphi\26.0\Bpl\RPro8Access_D103Rio.bpl" Configuration="Release" Class="ProjectOutput">
+                <DeployFile LocalName="C:\Users\dev\Documents\Delphi\27.0\Bpl\RPro8Access_D104Sydney.bpl" Configuration="Release" Class="ProjectOutput">
                     <Platform Name="Win32">
                         <RemoteName>RPro8Access.bpl</RemoteName>
                         <Overwrite>true</Overwrite>

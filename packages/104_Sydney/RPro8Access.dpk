@@ -43,6 +43,7 @@ contains
   uRPro8Customer in '..\..\src\uRPro8Customer.pas',
   uRPro8Inventory in '..\..\src\uRPro8Inventory.pas',
   uRPro8Receipt in '..\..\src\uRPro8Receipt.pas',
-  uRPro8Salesorder in '..\..\src\uRPro8Salesorder.pas';
+  uRPro8Salesorder in '..\..\src\uRPro8Salesorder.pas',
+  uRPro8Vendor in '..\..\src\uRPro8Vendor.pas';
 
 end.
