@@ -94,8 +94,8 @@ implementation
 
 uses
   {$IFDEF UseCodeSite} CodeSiteLogging, {$ENDIF}
-  MSXML_TLB, ActiveX;
-  
+  MSXML_TLB, Winapi.ActiveX, System.IOUtils;
+
 { TRPro8DB }
 
 var
@@ -261,16 +261,15 @@ end;
 
 function TRPro8DB.ValidRProPath(TestPath: string): Boolean;
 begin
-  if not FileExists(IncludeTrailingPathDelimiter(TestPath) + 'INVN.DAT') then
-    raise EPro8Exception.Create('Invalid Retail Pro directory--inventory data not found.');
+  Result := FileExists(TPath.Combine(TestPath, 'INVN.DAT')) and
+            FileExists(TPath.Combine(TestPath, 'Client.DAT')) and
+            FileExists(TPath.Combine(TestPath, 'SETUP1.DAT'));
 
-  if not FileExists(IncludeTrailingPathDelimiter(TestPath) + 'Client.DAT') then
-    raise EPro8Exception.Create('Invalid Retail Pro directory--customer data not found.');
-
-  if not FileExists(IncludeTrailingPathDelimiter(TestPath) + 'SETUP1.DAT') then
-    raise EPro8Exception.Create('Invalid Retail Pro directory--system preferences data not found.');
-
-  Result := True;
+  if not Result then
+    if Length(TestPath) = 0 then
+      raise EPro8Exception.Create('Your Retail Pro 8 configuration has not been set--the data path is empty.')
+    else
+      raise EPro8Exception.Create('Invalid Retail Pro directory "' + TestPath + '", expected data files not found.');
 end;
 
 procedure TRPro8DB.GetStores(StoreList: TStrings);
