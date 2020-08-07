@@ -101,6 +101,14 @@ type
     function GetEmail: string;
     procedure SetEmail(const AValue: string);
     {$ENDREGION}
+  protected
+    function  GetTableID: Integer; override;
+    function  GetTableName: string; override;
+    function  GetCustomInterface: IDispatch; override;
+    function  GetIsRecordDeleted: Boolean; override;
+    function  GetIsEmptyRecord: Boolean; override;
+  public
+    procedure SetHistoryMonthYear(Month, Year: Integer); override;
   published
     property VendorCode: string read GetVendorCode write SetVendorCode;
     property Company: string read GetCompany write SetCompany;
@@ -136,6 +144,10 @@ type
 
 implementation
 
+uses
+  uRProCommon, uRPro8DB;
+
+
 function TRPro8Vendor.GetVendorCode: string;
 begin
   Result := FVendorCode;
@@ -149,6 +161,11 @@ end;
 function TRPro8Vendor.GetCompany: string;
 begin
   Result := FCompany;
+end;
+
+function TRPro8Vendor.GetCustomInterface: IDispatch;
+begin
+  raise EPro8Exception.Create('CustomInterface is not available for this table (' + TableName + ').');
 end;
 
 procedure TRPro8Vendor.SetCompany(const AValue: string);
@@ -174,6 +191,11 @@ end;
 procedure TRPro8Vendor.SetFirstName(const AValue: string);
 begin
   FFirstName := AValue;
+end;
+
+procedure TRPro8Vendor.SetHistoryMonthYear(Month, Year: Integer);
+begin
+  raise EPro8Exception.Create('History is not available for this table (' + TableName + ').');
 end;
 
 function TRPro8Vendor.GetLastName: string;
@@ -279,6 +301,22 @@ end;
 function TRPro8Vendor.GetInfo2: string;
 begin
   Result := FInfo2;
+end;
+
+function TRPro8Vendor.GetIsEmptyRecord: Boolean;
+begin
+  if Active then
+    Result := (Length(FVendorCode) > 0) and (not IsRecordDeleted)
+  else
+    raise EPro8Exception.Create('Cannot get the Empty status of a record for a closed table (' + TableName + ').');
+end;
+
+function TRPro8Vendor.GetIsRecordDeleted: Boolean;
+begin
+  if Active then
+    Result := FRProTable.IsRecordDeleted
+  else
+    raise EPro8Exception.Create('Cannot get the IsRecordDeleted status of a record for a closed table (' + TableName + ').');
 end;
 
 procedure TRPro8Vendor.SetInfo2(const AValue: string);
@@ -394,6 +432,17 @@ end;
 procedure TRPro8Vendor.SetUDF8(const AValue: string);
 begin
   FUDF8 := AValue;
+end;
+
+function TRPro8Vendor.GetTableID: Integer;
+begin
+  // returns a constant from RDA2_TLB
+  Result := tblVendors;
+end;
+
+function TRPro8Vendor.GetTableName: string;
+begin
+  Result := 'Vendors';
 end;
 
 function TRPro8Vendor.GetTerms: string;
