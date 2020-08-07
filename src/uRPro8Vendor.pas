@@ -10,37 +10,6 @@ uses
 type
   TRPro8Vendor = class(TRPro8Table)
   strict private
-    {$REGION 'Private Fields'}
-    FVendorCode: string;
-    FCompany: string;
-    FTitle: string;
-    FFirstName: string;
-    FLastName: string;
-    FAddr1: string;
-    FAddr2: string;
-    FAddr3: string;
-    FCity: string;
-    FStateProvinceCode: string;
-    FZip: string;
-    FPhone1: string;
-    FPhone2: string;
-    FInfo1: string;
-    FInfo2: string;
-    FNotes: string;
-    FAcctNum: string;
-    FAcctPayable: string;
-    FUDF1: TDate;
-    FUDF2: TDate;
-    FUDF3: string;
-    FUDF4: string;
-    FUDF5: string;
-    FUDF6: string;
-    FUDF7: string;
-    FUDF8: string;
-    FTerms: string;
-    FTradeDiscPercent: Double;
-    FEmail: string;
-    {$ENDREGION}
     {$REGION 'Getters and Setters'}
     function GetVendorCode: string;
     procedure SetVendorCode(const AValue: string);
@@ -150,17 +119,17 @@ uses
 
 function TRPro8Vendor.GetVendorCode: string;
 begin
-  Result := FVendorCode;
+  Result := FRProTable.Document.GetString(fidVC, FLastFieldNull);
 end;
 
 procedure TRPro8Vendor.SetVendorCode(const AValue: string);
 begin
-  FVendorCode := AValue;
+  FRProTable.Document.SetString(AValue, fidVC);
 end;
 
 function TRPro8Vendor.GetCompany: string;
 begin
-  Result := FCompany;
+  Result := FRProTable.Document.GetString(fidVndrCompany, FLastFieldNull);
 end;
 
 function TRPro8Vendor.GetCustomInterface: IDispatch;
@@ -170,27 +139,27 @@ end;
 
 procedure TRPro8Vendor.SetCompany(const AValue: string);
 begin
-  FCompany := AValue;
+  { TODO : finish this someday if you needk }
 end;
 
 function TRPro8Vendor.GetTitle: string;
 begin
-  Result := FTitle;
+  { TODO : finish this someday if you needk }
 end;
 
 procedure TRPro8Vendor.SetTitle(const AValue: string);
 begin
-  FTitle := AValue;
+  { TODO : finish this someday if you needk }
 end;
 
 function TRPro8Vendor.GetFirstName: string;
 begin
-  Result := FFirstName;
+  { TODO : finish this someday if you needk }
 end;
 
 procedure TRPro8Vendor.SetFirstName(const AValue: string);
 begin
-  FFirstName := AValue;
+  { TODO : finish this someday if you needk }
 end;
 
 procedure TRPro8Vendor.SetHistoryMonthYear(Month, Year: Integer);
@@ -200,113 +169,113 @@ end;
 
 function TRPro8Vendor.GetLastName: string;
 begin
-  Result := FLastName;
+  { TODO : finish this someday if you needk }
 end;
 
 procedure TRPro8Vendor.SetLastName(const AValue: string);
 begin
-  FLastName := AValue;
+  { TODO : finish this someday if you needk }
 end;
 
 function TRPro8Vendor.GetAddr1: string;
 begin
-  Result := FAddr1;
+  { TODO : finish this someday if you needk }
 end;
 
 procedure TRPro8Vendor.SetAddr1(const AValue: string);
 begin
-  FAddr1 := AValue;
+  { TODO : finish this someday if you needk }
 end;
 
 function TRPro8Vendor.GetAddr2: string;
 begin
-  Result := FAddr2;
+  { TODO : finish this someday if you needk }
 end;
 
 procedure TRPro8Vendor.SetAddr2(const AValue: string);
 begin
-  FAddr2 := AValue;
+  { TODO : finish this someday if you needk }
 end;
 
 function TRPro8Vendor.GetAddr3: string;
 begin
-  Result := FAddr3;
+  { TODO : finish this someday if you needk }
 end;
 
 procedure TRPro8Vendor.SetAddr3(const AValue: string);
 begin
-  FAddr3 := AValue;
+  { TODO : finish this someday if you needk }
 end;
 
 function TRPro8Vendor.GetCity: string;
 begin
-  Result := FCity;
+  { TODO : finish this someday if you needk }
 end;
 
 procedure TRPro8Vendor.SetCity(const AValue: string);
 begin
-  FCity := AValue;
+  { TODO : finish this someday if you needk }
 end;
 
 function TRPro8Vendor.GetStateProvinceCode: string;
 begin
-  Result := FStateProvinceCode;
+  { TODO : finish this someday if you needk }
 end;
 
 procedure TRPro8Vendor.SetStateProvinceCode(const AValue: string);
 begin
-  FStateProvinceCode := AValue;
+  { TODO : finish this someday if you needk }
 end;
 
 function TRPro8Vendor.GetZip: string;
 begin
-  Result := FZip;
+  { TODO : finish this someday if you needk }
 end;
 
 procedure TRPro8Vendor.SetZip(const AValue: string);
 begin
-  FZip := AValue;
+  { TODO : finish this someday if you needk }
 end;
 
 function TRPro8Vendor.GetPhone1: string;
 begin
-  Result := FPhone1;
+  { TODO : finish this someday if you needk }
 end;
 
 procedure TRPro8Vendor.SetPhone1(const AValue: string);
 begin
-  FPhone1 := AValue;
+  { TODO : finish this someday if you needk }
 end;
 
 function TRPro8Vendor.GetPhone2: string;
 begin
-  Result := FPhone2;
+  { TODO : finish this someday if you needk }
 end;
 
 procedure TRPro8Vendor.SetPhone2(const AValue: string);
 begin
-  FPhone2 := AValue;
+  { TODO : finish this someday if you needk }
 end;
 
 function TRPro8Vendor.GetInfo1: string;
 begin
-  Result := FInfo1;
+  { TODO : finish this someday if you needk }
 end;
 
 procedure TRPro8Vendor.SetInfo1(const AValue: string);
 begin
-  FInfo1 := AValue;
+  { TODO : finish this someday if you needk }
 end;
 
 function TRPro8Vendor.GetInfo2: string;
 begin
-  Result := FInfo2;
+  { TODO : finish this someday if you needk }
 end;
 
 function TRPro8Vendor.GetIsEmptyRecord: Boolean;
 begin
   if Active then
-    Result := (Length(FVendorCode) > 0) and (not IsRecordDeleted)
+    Result := not IsRecordDeleted
   else
     raise EPro8Exception.Create('Cannot get the Empty status of a record for a closed table (' + TableName + ').');
 end;
@@ -321,117 +290,117 @@ end;
 
 procedure TRPro8Vendor.SetInfo2(const AValue: string);
 begin
-  FInfo2 := AValue;
+  { TODO : finish this someday if you needk }
 end;
 
 function TRPro8Vendor.GetNotes: string;
 begin
-  Result := FNotes;
+  { TODO : finish this someday if you needk }
 end;
 
 procedure TRPro8Vendor.SetNotes(const AValue: string);
 begin
-  FNotes := AValue;
+  { TODO : finish this someday if you needk }
 end;
 
 function TRPro8Vendor.GetAcctNum: string;
 begin
-  Result := FAcctNum;
+  { TODO : finish this someday if you needk }
 end;
 
 procedure TRPro8Vendor.SetAcctNum(const AValue: string);
 begin
-  FAcctNum := AValue;
+  { TODO : finish this someday if you needk }
 end;
 
 function TRPro8Vendor.GetAcctPayable: string;
 begin
-  Result := FAcctPayable;
+  { TODO : finish this someday if you needk }
 end;
 
 procedure TRPro8Vendor.SetAcctPayable(const AValue: string);
 begin
-  FAcctPayable := AValue;
+  { TODO : finish this someday if you needk }
 end;
 
 function TRPro8Vendor.GetUDF1: TDate;
 begin
-  Result := FUDF1;
+  { TODO : finish this someday if you needk }
 end;
 
 procedure TRPro8Vendor.SetUDF1(const AValue: TDate);
 begin
-  FUDF1 := AValue;
+  { TODO : finish this someday if you needk }
 end;
 
 function TRPro8Vendor.GetUDF2: TDate;
 begin
-  Result := FUDF2;
+  { TODO : finish this someday if you needk }
 end;
 
 procedure TRPro8Vendor.SetUDF2(const AValue: TDate);
 begin
-  FUDF2 := AValue;
+  { TODO : finish this someday if you needk }
 end;
 
 function TRPro8Vendor.GetUDF3: string;
 begin
-  Result := FUDF3;
+  { TODO : finish this someday if you needk }
 end;
 
 procedure TRPro8Vendor.SetUDF3(const AValue: string);
 begin
-  FUDF3 := AValue;
+  { TODO : finish this someday if you needk }
 end;
 
 function TRPro8Vendor.GetUDF4: string;
 begin
-  Result := FUDF4;
+  { TODO : finish this someday if you needk }
 end;
 
 procedure TRPro8Vendor.SetUDF4(const AValue: string);
 begin
-  FUDF4 := AValue;
+  { TODO : finish this someday if you needk }
 end;
 
 function TRPro8Vendor.GetUDF5: string;
 begin
-  Result := FUDF5;
+  { TODO : finish this someday if you needk }
 end;
 
 procedure TRPro8Vendor.SetUDF5(const AValue: string);
 begin
-  FUDF5 := AValue;
+  { TODO : finish this someday if you needk }
 end;
 
 function TRPro8Vendor.GetUDF6: string;
 begin
-  Result := FUDF6;
+  { TODO : finish this someday if you needk }
 end;
 
 procedure TRPro8Vendor.SetUDF6(const AValue: string);
 begin
-  FUDF6 := AValue;
+  { TODO : finish this someday if you needk }
 end;
 
 function TRPro8Vendor.GetUDF7: string;
 begin
-  Result := FUDF7;
+  { TODO : finish this someday if you needk }
 end;
 
 procedure TRPro8Vendor.SetUDF7(const AValue: string);
 begin
-  FUDF7 := AValue;
+  { TODO : finish this someday if you needk }
 end;
 
 function TRPro8Vendor.GetUDF8: string;
 begin
-  Result := FUDF8;
+  { TODO : finish this someday if you needk }
 end;
 
 procedure TRPro8Vendor.SetUDF8(const AValue: string);
 begin
-  FUDF8 := AValue;
+  { TODO : finish this someday if you needk }
 end;
 
 function TRPro8Vendor.GetTableID: Integer;
@@ -447,32 +416,32 @@ end;
 
 function TRPro8Vendor.GetTerms: string;
 begin
-  Result := FTerms;
+  { TODO : finish this someday if you needk }
 end;
 
 procedure TRPro8Vendor.SetTerms(const AValue: string);
 begin
-  FTerms := AValue;
+  { TODO : finish this someday if you needk }
 end;
 
 function TRPro8Vendor.GetTradeDiscPercent: Double;
 begin
-  Result := FTradeDiscPercent;
+  { TODO : finish this someday if you needk }
 end;
 
 procedure TRPro8Vendor.SetTradeDiscPercent(const AValue: Double);
 begin
-  FTradeDiscPercent := AValue;
+  { TODO : finish this someday if you needk }
 end;
 
 function TRPro8Vendor.GetEmail: string;
 begin
-  Result := FEmail;
+  { TODO : finish this someday if you needk }
 end;
 
 procedure TRPro8Vendor.SetEmail(const AValue: string);
 begin
-  FEmail := AValue;
+  { TODO : finish this someday if you needk }
 end;
 
 end.
