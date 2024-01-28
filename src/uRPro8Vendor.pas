@@ -325,6 +325,7 @@ end;
 
 function TRPro8Vendor.GetUDF1: TDate;
 begin
+  Result := EncodeDate(2000, 1, 1);
   { TODO : finish this someday if you needk }
 end;
 
@@ -335,6 +336,7 @@ end;
 
 function TRPro8Vendor.GetUDF2: TDate;
 begin
+  Result := EncodeDate(2000, 1, 1);
   { TODO : finish this someday if you needk }
 end;
 
@@ -426,6 +428,7 @@ end;
 
 function TRPro8Vendor.GetTradeDiscPercent: Double;
 begin
+  Result := 0.0;
   { TODO : finish this someday if you needk }
 end;
 
